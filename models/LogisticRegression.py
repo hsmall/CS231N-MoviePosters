@@ -1,22 +1,20 @@
 from models.Model import Model
 
-import progressbar  # pip install progressbar2
 import tensorflow as tf
 import numpy as np 
 
 class LogisticRegression(Model):
-	def __init__(self, genres, input_dim, output_dim):
+	def __init__(self, genres, input_dim):
 		self.input_dim = input_dim
-		self.output_dim = output_dim
 		Model.__init__(self, genres)
 
 	def build_graph(self):
 		self.X_placeholder = tf.placeholder(tf.float32, shape=[None, self.input_dim])
-		self.y_placeholder = tf.placeholder(tf.float32, shape=[None, self.output_dim])
+		self.y_placeholder = tf.placeholder(tf.float32, shape=[None, self.num_classes])
 		self.learning_rate = tf.placeholder(tf.float32, shape=[])
 
-		self.W = tf.Variable(tf.random_normal(shape=[self.input_dim, self.output_dim]))
-		self.b = tf.Variable(tf.zeros(shape=[1, self.output_dim]))
+		self.W = tf.Variable(tf.random_normal(shape=[self.input_dim, self.num_classes]))
+		self.b = tf.Variable(tf.zeros(shape=[1, self.num_classes]))
 
 		return tf.nn.sigmoid(tf.matmul(self.X_placeholder, self.W) + self.b)
 
@@ -28,9 +26,9 @@ class LogisticRegression(Model):
 		return tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
 
 	def predict(self, X):
-		return np.round(self.session.run(self.output, {
+		return self.session.run(self.output, {
 			self.X_placeholder : X
-		}))
+		})
 
 	def get_weights(self):
 		return self.session.run(self.W)

@@ -1,15 +1,17 @@
 import logging
 import os
 # pip3 install https://pypi.python.org/packages/source/P/PrettyTable/prettytable-0.7.2.tar.bz2
-from prettytable import PrettyTable
-import progressbar  # pip install progressbar2
+#from prettytable import PrettyTable
+#import progressbar  # pip install progressbar2
 import sklearn.metrics
 import tensorflow as tf
 import numpy as np 
 
 class Model:
 	def __init__(self, genres):
+		print('Initializing model...', end='')
 		self.genres = genres
+		self.num_classes = len(genres)
 		self.session = tf.Session()
 
 		self.output = self.build_graph()
@@ -17,6 +19,7 @@ class Model:
 		self.train_op = self.optimizer(self.loss)
 		
 		self.session.run(tf.global_variables_initializer())
+		print('Done.')
 
 	def build_graph(self):
 		raise NotImplementedError('Must implement build_graph().')
@@ -38,11 +41,13 @@ class Model:
 		tf.train.Saver().restore(self.session, filename)
 
 	def train(self, train_dataset, valid_dataset, num_epochs=10, batch_size=1000, learning_rate=1e-3, verbose=False):
+		print('Training Model...')
 		best_valid_loss = float('inf')
 		for epoch in range(1, num_epochs+1):
 			
 			# Initialize the progress bar
 			num_batches = int(np.ceil(train_dataset.size()/batch_size))
+			'''
 			progbar = progressbar.ProgressBar(
 				widgets = [
 					'Epoch #{0} out of {1}: '.format(epoch, num_epochs),
@@ -53,6 +58,7 @@ class Model:
 				],
 				max_value = num_batches
 			)
+			'''
 
 			# Train on all batches for this epoch
 			for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size)):
@@ -62,7 +68,7 @@ class Model:
 					self.learning_rate : learning_rate
 				})
 				train_accuracy = np.mean(self.get_accuracies(X_batch, y_batch))
-				progbar.update(batch+1, loss=train_loss, accuracy=train_accuracy)
+				#progbar.update(batch+1, loss=train_loss, accuracy=train_accuracy)
 
 			valid_loss = self.session.run(self.loss, {
 				self.X_placeholder : valid_dataset.X,
@@ -76,8 +82,9 @@ class Model:
 				marker = "*"
 
 			print('Validation Loss: {0:.4f} {1}'.format(valid_loss, marker))
-			if verbose:
-				print(self.get_stats_table(valid_dataset.X, valid_dataset.y))
+			#if verbose:
+			#	print(self.get_stats_table(valid_dataset.X, valid_dataset.y))
+		print('Done Training.')
 			
 
 	def predict(self, dataset):
@@ -85,12 +92,12 @@ class Model:
 
 	def get_accuracies(self, X, y):
 		preds = self.predict(X)
-		return [ np.mean(y[:, i] == preds[:, i]) for i in range(self.output_dim)]
+		return [ np.mean(y[:, i] == preds[:, i]) for i in range(self.num_classes)]
 
 	def get_precision_recall_f1(self, X, y):
 		preds = self.predict(X)
 		scores = []
-		for i in range(self.output_dim):
+		for i in range(self.num_classes):
 			scores.append((
 				sklearn.metrics.precision_score(y[:, i], preds[:, i]),
 				sklearn.metrics.recall_score(y[:, i], preds[:, i]),
@@ -106,7 +113,7 @@ class Model:
 		accuracies = self.get_accuracies(X, y)
 		scores = self.get_precision_recall_f1(X, y)
 
-		for i in range(self.output_dim):
+		for i in range(self.num_classes):
 			table.add_row([self.genres[i], accuracies[i]] + list(scores[i]))
 		
 		return table

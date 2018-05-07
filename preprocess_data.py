@@ -30,5 +30,15 @@ def main():
 	print(posters.shape, genres.shape)
 	print('Done.')
 
+def main2():
+	print('a')
+	posters = np.load('movie_data/posters.npy')
+	print('b')
+	posters = posters.astype(np.single, copy=False)
+	print('c')
+	posters = np.save('movie_data/posters_single.npy', posters, allow_pickle=False)
+	print('d')
+
 if __name__ == '__main__':
-	main()
+	#main()
+	main2()

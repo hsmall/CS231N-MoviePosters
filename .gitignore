@@ -2,3 +2,5 @@
 *.py[cod]
 
 movie_data/
+saved_models/
+.ipynb_checkpoints/
