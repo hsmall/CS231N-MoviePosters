@@ -1,4 +1,5 @@
 import numpy as np
+import random
 import sklearn
 
 
@@ -12,7 +13,7 @@ class Dataset:
 		self.std = np.ones(X.shape[1:]) if std is None else std
 		#np.std(X, axis=0) if std is None else std
 
-		self.X = X.astype(np.float)
+		self.X = X.astype(np.float, copy=False)
 		self.X -= self.mean
 		self.X /= self.std
 		self.y = y
@@ -27,12 +28,16 @@ class Dataset:
 		return self.mean, self.std
 
 	def get_batches(self, batch_size):
-		X_shuffled, y_shuffled = sklearn.utils.shuffle(self.X, self.y)
+		#X_shuffled, y_shuffled = sklearn.utils.shuffle(self.X, self.y)
+        
+		combined = list(zip(self.X, self.y))
+		random.shuffle(combined)
+		self.X[:], self.y[:] = zip(*combined)
 
 		num_batches = int(np.ceil(self.size()/batch_size))
 		for i in range(num_batches):
-			X_batch = X_shuffled[batch_size*i:batch_size*(i+1)]
-			y_batch = y_shuffled[batch_size*i:batch_size*(i+1)] 
+			X_batch = self.X[batch_size*i:batch_size*(i+1)]
+			y_batch = self.y[batch_size*i:batch_size*(i+1)] 
 			yield X_batch, y_batch
 
 def main():
