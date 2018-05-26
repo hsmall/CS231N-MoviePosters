@@ -16,9 +16,9 @@ class Model:
 		self.is_training = tf.placeholder(tf.bool, shape=())
 
 		self.output = self.build_graph()
-		self.loss = self.loss_fn(self.y_placeholder, self.output)
-		self.train_op = self.optimizer(self.loss)
-		
+		self.model_loss = self.loss_fn(self.y_placeholder, self.output)
+		self.reg_loss = tf.losses.get_regularization_loss()
+		self.train_op = self.optimizer(self.model_loss + self.reg_loss)
 		self.session.run(tf.global_variables_initializer())
 		print('Done.')
 
@@ -56,7 +56,7 @@ class Model:
 			# Train on all batches for this epoch
 			print('Epoch #{0} out of {1}: '.format(epoch, num_epochs))
 			for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size)):
-				train_loss, _ = self.session.run((self.loss, self.train_op), {
+				train_loss, _ = self.session.run((self.model_loss, self.train_op), {
 					self.X_placeholder : X_batch,
 					self.y_placeholder : y_batch,
 					self.learning_rate : eta,
@@ -87,7 +87,7 @@ class Model:
 		X, y = dataset.X, dataset.y
 		for i in range(0, len(X), batch_size):
 			X_batch, y_batch = X[i:i+batch_size], y[i:i+batch_size]
-			loss = self.session.run(self.loss, {
+			loss = self.session.run(self.model_loss, {
 				self.X_placeholder : X_batch,
 				self.y_placeholder : y_batch,
 				self.is_training : False
@@ -124,9 +124,16 @@ class Model:
 			row = [self.genres[i], accuracies[i]] + list(scores[i])
 			table += row_format.format(*(row + [max_genre_len]))   
 
-		final_row = ['Overall'] + [np.mean(accuracies)] + list(np.mean(scores, axis=0))
+		micro_accuracy = np.average(accuracies, weights = self.label_probs[0])
+		micro_scores = np.average(scores, weights = self.label_probs[0], axis=0)    
+		micro_row = ['Micro Average'] + [micro_accuracy] + list(micro_scores)
+		macro_accuracy = np.mean(accuracies)
+		macro_scores = np.mean(scores, axis=0)  
+		macro_row = ['Macro Average'] + [macro_accuracy] + list(macro_scores)
+        
 		table += '------------------------------------------------------------\n'
-		table += row_format.format(*(final_row + [max_genre_len]))                     
+		table += row_format.format(*(micro_row + [max_genre_len]))
+		table += row_format.format(*(macro_row + [max_genre_len]))                     
 		table += '------------------------------------------------------------\n'
 		return table
 
