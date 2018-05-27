@@ -1,10 +1,10 @@
 import numpy as np
 import random
-import sklearn
 
+from keras.preprocessing.image import ImageDataGenerator
 
 class Dataset:
-	def __init__(self, X, y, mean=None, std=None):
+	def __init__(self, X, y, mean=None, std=None, normalize=True):
 		assert X.shape[0] == y.shape[0], 'Got different numbers of data and labels'
 		assert (mean is None) == (std is None), 'Must specify both or neither of mean and std'
 
@@ -14,8 +14,9 @@ class Dataset:
 		#np.std(X, axis=0) if std is None else std
 
 		self.X = X.astype(np.float, copy=False)
-		self.X -= self.mean
-		self.X /= self.std
+		if normalize:
+			self.X -= self.mean
+			self.X /= self.std
 		self.y = y
 
 	def size(self):
@@ -27,18 +28,38 @@ class Dataset:
 	def get_original_mean_and_std(self):
 		return self.mean, self.std
 
-	def get_batches(self, batch_size):
-		#X_shuffled, y_shuffled = sklearn.utils.shuffle(self.X, self.y)
+	def get_batches(self, batch_size, augmentation=False):
+		num_batches = int(np.ceil(self.size() / batch_size))
         
-		combined = list(zip(self.X, self.y))
-		random.shuffle(combined)
-		self.X[:], self.y[:] = zip(*combined)
+		if augmentation:
+			data_generator = ImageDataGenerator(
+				featurewise_center=False,
+				samplewise_center=False,
+				featurewise_std_normalization=False,
+				samplewise_std_normalization=False,
+				zca_whitening=False,
+				zca_epsilon=1e-06,
+				width_shift_range=10,
+				height_shift_range=10,
+				brightness_range=(0.5, 1.5),
+				zoom_range=(0.5, 1.5),
+				horizontal_flip=True,
+			).flow(self.X, self.y, batch_size)
+            
+			for i, (X_batch, y_batch) in enumerate(data_generator):
+				if i >= num_batches: break
+				yield X_batch, y_batch
+        
+		else:
+			combined = list(zip(self.X, self.y))
+			random.shuffle(combined)
+			self.X[:], self.y[:] = zip(*combined)
 
-		num_batches = int(np.ceil(self.size()/batch_size))
-		for i in range(num_batches):
-			X_batch = self.X[batch_size*i:batch_size*(i+1)]
-			y_batch = self.y[batch_size*i:batch_size*(i+1)] 
-			yield X_batch, y_batch
+			num_batches = int(np.ceil(self.size()/batch_size))
+			for i in range(num_batches):
+				X_batch = self.X[batch_size*i:batch_size*(i+1)]
+				y_batch = self.y[batch_size*i:batch_size*(i+1)] 
+				yield X_batch, y_batch
 
 def main():
 	X = np.random.normal(size = (10, 5, 5, 3))

@@ -44,7 +44,7 @@ class Model:
 	def load(self, filename):
 		tf.train.Saver().restore(self.session, filename)
 
-	def train(self, train_dataset, valid_dataset, num_epochs=10, batch_size=1000, eta=1e-3, saving=False, verbose=False):
+	def train(self, train_dataset, valid_dataset, num_epochs=10, batch_size=1000, eta=1e-3, augmentation=False, saving=False, verbose=False):
 		print('Training Model...')
 		best_valid_loss = float('inf')
 		for epoch in range(1, num_epochs+1):
@@ -55,7 +55,7 @@ class Model:
             
 			# Train on all batches for this epoch
 			print('Epoch #{0} out of {1}: '.format(epoch, num_epochs))
-			for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size)):
+			for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size, augmentation)):
 				train_loss, _ = self.session.run((self.model_loss, self.train_op), {
 					self.X_placeholder : X_batch,
 					self.y_placeholder : y_batch,
