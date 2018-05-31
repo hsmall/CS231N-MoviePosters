@@ -4,41 +4,40 @@ import re
 
 
 def filter_genres(all_genres_list, used_genres_list, genres):
-	indices = [ all_genres_list.index(genre) for genre in used_genres_list ]
-	return genres[:, indices]
+    indices = [ all_genres_list.index(genre) for genre in used_genres_list ]
+    return genres[:, indices]
 
 
 def main():
-	print('Combining split up data files...')
-	sort_fn = lambda x: int(re.findall('(\d*).npy', x)[0])
-	poster_files = sorted(glob.glob('movie_data/posters_*.npy'), key = sort_fn)
-	genre_files = sorted(glob.glob('movie_data/genres_*.npy'), key = sort_fn)
-	
-	print('Loading Files...')
-	poster_data = [ np.load(file) for file in poster_files ]
-	genre_data = [ np.load(file) for file in genre_files ]
-	
-	print('Concatenating Files...')
-	posters = np.concatenate(poster_data, axis=0)
-	genres = np.concatenate(genre_data, axis=0)
-	
+    print('Combining split up data files...')
+    sort_fn = lambda x: int(re.findall('(\d*).npy', x)[0])
+    poster_files = sorted(glob.glob('movie_data/posters_*.npy'), key = sort_fn)
+    genre_files = sorted(glob.glob('movie_data/genres_*.npy'), key = sort_fn)
+    
+    print('Loading Files...')
+    poster_data = [ np.load(file) for file in poster_files ]
+    genre_data = [ np.load(file) for file in genre_files ]
+    
+    print('Concatenating Files...')
+    posters = np.concatenate(poster_data, axis=0)
+    genres = np.concatenate(genre_data, axis=0)
+    
 
-	print('Saving Files...')
-	np.save('movie_data/posters.npy', posters, allow_pickle=False)
-	np.save('movie_data/genres.npy', genres, allow_pickle=False)
+    print('Saving Files...')
+    np.save('movie_data/posters.npy', posters, allow_pickle=False)
+    np.save('movie_data/genres.npy', genres, allow_pickle=False)
 
-	print(posters.shape, genres.shape)
-	print('Done.')
+    print(posters.shape, genres.shape)
+    print('Done.')
 
 def main2():
-	print('a')
-	posters = np.load('movie_data/posters.npy')
-	print('b')
-	posters = posters.astype(np.single, copy=False)
-	print('c')
-	posters = np.save('movie_data/posters_single.npy', posters, allow_pickle=False)
-	print('d')
+    posters = np.load('movie_data/posters.npy')
+    genres = np.load('movie_data/genres.npy')
+    
+    np.save('movie_data/posters_small.npy', posters[:5000], allow_pickle=False)
+    np.save('movie_data/genres_small.npy', genres[:5000], allow_pickle=False)
 
 if __name__ == '__main__':
-	#main()
-	main2()
+    #main()
+    #main2()
+    pass

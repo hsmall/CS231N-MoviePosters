@@ -4,12 +4,12 @@ import tensorflow as tf
 import numpy as np 
 
 class LogisticRegression(Model):
-	def __init__(self, genres, label_probs, image_shape):
+	def __init__(self, genres, label_probs, image_shape, resize_shape=None):
 		self.label_probs = label_probs
 		self.image_shape = image_shape
-		Model.__init__(self, genres)
+		Model.__init__(self, genres, resize_shape)
 
-	def build_graph(self):
+	def build_graph(self, resize_shape):
 		self.X_placeholder = tf.placeholder(tf.float32, shape=[None] + list(self.image_shape))
 		self.y_placeholder = tf.placeholder(tf.float32, shape=[None, self.num_classes])
 		self.learning_rate = tf.placeholder(tf.float32, shape=[])

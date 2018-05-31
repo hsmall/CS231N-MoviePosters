@@ -8,133 +8,133 @@ import tensorflow as tf
 import numpy as np 
 
 class Model:
-	def __init__(self, genres):
-		print('Initializing model...', end='')
-		self.genres = genres
-		self.num_classes = len(genres)
-		self.session = tf.Session()
-		self.is_training = tf.placeholder(tf.bool, shape=())
+    def __init__(self, genres, resize_shape=None):
+        print('Initializing model...', end='')
+        self.genres = genres
+        self.num_classes = len(genres)
+        self.session = tf.Session()
+        self.is_training = tf.placeholder(tf.bool, shape=())
 
-		self.output = self.build_graph()
-		self.model_loss = self.loss_fn(self.y_placeholder, self.output)
-		self.reg_loss = tf.losses.get_regularization_loss()
-		self.train_op = self.optimizer(self.model_loss + self.reg_loss)
-		self.session.run(tf.global_variables_initializer())
-		print('Done.')
+        self.output = self.build_graph(resize_shape)
+        self.model_loss = self.loss_fn(self.y_placeholder, self.output)
+        self.reg_loss = tf.losses.get_regularization_loss()
+        self.train_op = self.optimizer(self.model_loss + self.reg_loss)
+        self.session.run(tf.global_variables_initializer())
+        print('Done.')
 
-	def build_graph(self):
-		# Must initialize self.X_placeholder, self.y_placeholder and
-		# self.learning_rate. Must return tensor that represents model
-		# output (used in loss function).
-		raise NotImplementedError('Must implement build_graph().')
+    def build_graph(self, resize_shape=None):
+        # Must initialize self.X_placeholder, self.y_placeholder and
+        # self.learning_rate. Must return tensor that represents model
+        # output (used in loss function).
+        raise NotImplementedError('Must implement build_graph().')
 
-	def loss_fn(self, y, output):
-		raise NotImplementedError('Must implement loss_fn().')
+    def loss_fn(self, y, output):
+        raise NotImplementedError('Must implement loss_fn().')
 
-	def optimizer(self):
-		raise NotImplementedError('Must implement optimizer().')
+    def optimizer(self):
+        raise NotImplementedError('Must implement optimizer().')
 
-	def save(self, filename):
-		directory = os.path.dirname(filename)
-		if not os.path.exists(directory):
-			os.makedirs(directory)
-		
-		tf.train.Saver().save(self.session, filename)
+    def save(self, filename):
+        directory = os.path.dirname(filename)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        
+        tf.train.Saver().save(self.session, filename)
 
-	def load(self, filename):
-		tf.train.Saver().restore(self.session, filename)
+    def load(self, filename):
+        tf.train.Saver().restore(self.session, filename)
 
-	def train(self, train_dataset, valid_dataset, num_epochs=10, batch_size=1000, eta=1e-3, augmentation=False, saving=False, verbose=False):
-		print('Training Model...')
-		best_valid_loss = float('inf')
-		for epoch in range(1, num_epochs+1):
-			if epoch > 1: eta /= 2
-			# Initialize the progress bar
-			num_batches = int(np.ceil(train_dataset.size()/batch_size))     
-			progbar = Progbar(target = num_batches)
+    def train(self, train_dataset, valid_dataset, num_epochs=10, batch_size=1000, eta=1e-3, augmentation=False, saving=False, verbose=False):
+        print('Training Model...')
+        best_valid_loss = float('inf')
+        for epoch in range(1, num_epochs+1):
+            if epoch > 1: eta /= 2
+            # Initialize the progress bar
+            num_batches = int(np.ceil(train_dataset.size()/batch_size))     
+            progbar = Progbar(target = num_batches)
             
-			# Train on all batches for this epoch
-			print('Epoch #{0} out of {1}: '.format(epoch, num_epochs))
-			for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size, augmentation)):
-				train_loss, _ = self.session.run((self.model_loss, self.train_op), {
-					self.X_placeholder : X_batch,
-					self.y_placeholder : y_batch,
-					self.learning_rate : eta,
-					self.is_training : True
-				})
-				progbar.update(batch+1, [('Train Loss', train_loss)])
+            # Train on all batches for this epoch
+            print('Epoch #{0} out of {1}: '.format(epoch, num_epochs))
+            for batch, (X_batch, y_batch) in enumerate(train_dataset.get_batches(batch_size, augmentation)):
+                train_loss, _ = self.session.run((self.model_loss, self.train_op), {
+                    self.X_placeholder : X_batch,
+                    self.y_placeholder : y_batch,
+                    self.learning_rate : eta,
+                    self.is_training : True
+                })
+                progbar.update(batch+1, [('Train Loss', train_loss)])
 
-			valid_loss = self.get_loss(valid_dataset, batch_size)
-			marker = ""
-			if valid_loss <= best_valid_loss:
-				best_valid_loss = valid_loss
-				self.save("saved_models/{0}/{0}".format(type(self).__name__))
-				marker = "*"
+            valid_loss = self.get_loss(valid_dataset, batch_size)
+            marker = ""
+            if valid_loss <= best_valid_loss:
+                best_valid_loss = valid_loss
+                self.save("saved_models/{0}/{0}".format(type(self).__name__))
+                marker = "*"
 
-			print('Validation Loss: {0:.4f} {1}'.format(valid_loss, marker))
-			if verbose:
-				print(self.get_stats_table(valid_dataset, batch_size))
-		print('Done Training.')
-			
+            print('Validation Loss: {0:.4f} {1}'.format(valid_loss, marker))
+            if verbose:
+                print(self.get_stats_table(valid_dataset, batch_size))
+        print('Done Training.')
+            
 
-	def predict(self, X, batch_size=None):
-		raise NotImplementedError('Must implement predict().')
+    def predict(self, X, batch_size=None):
+        raise NotImplementedError('Must implement predict().')
 
-	def get_loss(self, dataset, batch_size=None):
-		if batch_size is None: batch_size = len(X)
+    def get_loss(self, dataset, batch_size=None):
+        if batch_size is None: batch_size = len(X)
 
-		losses = []
-		X, y = dataset.X, dataset.y
-		for i in range(0, len(X), batch_size):
-			X_batch, y_batch = X[i:i+batch_size], y[i:i+batch_size]
-			loss = self.session.run(self.model_loss, {
-				self.X_placeholder : X_batch,
-				self.y_placeholder : y_batch,
-				self.is_training : False
-			})
-			losses.append(loss * len(X_batch))
-		return np.sum(losses) / len(X)
+        losses = []
+        X, y = dataset.X, dataset.y
+        for i in range(0, len(X), batch_size):
+            X_batch, y_batch = X[i:i+batch_size], y[i:i+batch_size]
+            loss = self.session.run(self.model_loss, {
+                self.X_placeholder : X_batch,
+                self.y_placeholder : y_batch,
+                self.is_training : False
+            })
+            losses.append(loss * len(X_batch))
+        return np.sum(losses) / len(X)
 
                                
-	def get_accuracies(self, predictions, y):
-		return [ np.mean(y[:, i] == predictions[:, i]) for i in range(self.num_classes)]    
+    def get_accuracies(self, predictions, y):
+        return [ np.mean(y[:, i] == predictions[:, i]) for i in range(self.num_classes)]    
 
-	def get_precision_recall_f1(self, predictions, y):
-		scores = []
-		for i in range(self.num_classes):
-			scores.append((
-				sklearn.metrics.precision_score(y[:, i], predictions[:, i]),
-				sklearn.metrics.recall_score(y[:, i], predictions[:, i]),
-				sklearn.metrics.f1_score(y[:, i], predictions[:, i]),
-			))
-		return scores
+    def get_precision_recall_f1(self, predictions, y):
+        scores = []
+        for i in range(self.num_classes):
+            scores.append((
+                sklearn.metrics.precision_score(y[:, i], predictions[:, i]),
+                sklearn.metrics.recall_score(y[:, i], predictions[:, i]),
+                sklearn.metrics.f1_score(y[:, i], predictions[:, i]),
+            ))
+        return scores
 
-	def get_stats_table(self, dataset, batch_size):
-		max_genre_len = max([len(genre) for genre in self.genres])     
-		table  = '------------------------------------------------------------\n'
-		table += '| {0:^{1}} | Accuracy | Precision | Recall |   F1   |\n'.format('Genre', max_genre_len)
-		table += '------------------------------------------------------------\n'  
+    def get_stats_table(self, dataset, batch_size):
+        max_genre_len = max([len(genre) for genre in self.genres])     
+        table  = '------------------------------------------------------------\n'
+        table += '| {0:^{1}} | Accuracy | Precision | Recall |   F1   |\n'.format('Genre', max_genre_len)
+        table += '------------------------------------------------------------\n'  
         
-		predictions = self.predict(dataset.X, batch_size)
-		accuracies = self.get_accuracies(predictions, dataset.y)
-		scores = self.get_precision_recall_f1(predictions, dataset.y)
+        predictions = self.predict(dataset.X, batch_size)
+        accuracies = self.get_accuracies(predictions, dataset.y)
+        scores = self.get_precision_recall_f1(predictions, dataset.y)
         
-		row_format = '| {0:<{5}} |  {1:.4f}  |   {2:.4f}  | {3:.4f} | {4:.4f} |\n'                       
-		for i in range(self.num_classes):
-			row = [self.genres[i], accuracies[i]] + list(scores[i])
-			table += row_format.format(*(row + [max_genre_len]))   
+        row_format = '| {0:<{5}} |  {1:.4f}  |   {2:.4f}  | {3:.4f} | {4:.4f} |\n'                       
+        for i in range(self.num_classes):
+            row = [self.genres[i], accuracies[i]] + list(scores[i])
+            table += row_format.format(*(row + [max_genre_len]))   
 
-		micro_accuracy = np.average(accuracies, weights = self.label_probs[0])
-		micro_scores = np.average(scores, weights = self.label_probs[0], axis=0)    
-		micro_row = ['Micro Average'] + [micro_accuracy] + list(micro_scores)
-		macro_accuracy = np.mean(accuracies)
-		macro_scores = np.mean(scores, axis=0)  
-		macro_row = ['Macro Average'] + [macro_accuracy] + list(macro_scores)
+        micro_accuracy = np.average(accuracies, weights = self.label_probs[0])
+        micro_scores = np.average(scores, weights = self.label_probs[0], axis=0)    
+        micro_row = ['Micro Average'] + [micro_accuracy] + list(micro_scores)
+        macro_accuracy = np.mean(accuracies)
+        macro_scores = np.mean(scores, axis=0)  
+        macro_row = ['Macro Average'] + [macro_accuracy] + list(macro_scores)
         
-		table += '------------------------------------------------------------\n'
-		table += row_format.format(*(micro_row + [max_genre_len]))
-		table += row_format.format(*(macro_row + [max_genre_len]))                     
-		table += '------------------------------------------------------------\n'
-		return table
+        table += '------------------------------------------------------------\n'
+        table += row_format.format(*(micro_row + [max_genre_len]))
+        table += row_format.format(*(macro_row + [max_genre_len]))                     
+        table += '------------------------------------------------------------\n'
+        return table
 
 
