@@ -56,7 +56,7 @@ class GANModel():
 			for minibatch in batches: 
 				minibatch = np.reshape(minibatch, (self.batch_size, -1))
 				_, D_loss_curr = sess.run([self.D_train_op, self.D_loss], {self.images: minibatch})
-				_, G_loss_curr = sess.run([self.G_train_step, self.G_loss])
+				_, G_loss_curr = sess.run([self.G_train_op, self.G_loss])
 
 			if epoch & print_every == 0: 
 				print('Epoch: {}, D: {:.4}, G:{.4}'.format(epoch, D_loss_curr, G_loss_curr))
