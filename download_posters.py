@@ -6,6 +6,9 @@ import progressbar  # pip install progressbar2
 import numpy as np
 import requests
 import time
+import argparse
+import sys 
+import os 
 
 # Returns a list of named genres (i.e. ['Action', 'Adventure', ... ]), and
 # a map from genre_ids to the index of the genre in |genre_list|.
@@ -111,7 +114,53 @@ def download_movie_data(api_key, params, start_page=1, max_pages=1000):
 		pbar.update(page)
 
 
-def main():
+def main(api_key, params):
+	print('Downloading Movie Posters/Genres...')
+	download_movie_data(api_key, params)
+	print('Done.')
+
+def main_tl(api_key, params, FLAGS, start_page=1):
+	max_pages = FLAGS.max_pages
+	genre_list, genre_map = get_genres(API_KEY)
+	total_pages = make_request(api_key, params)['total_pages']
+	total_pages = min(total_pages, max_pages)
+	pbar = progressbar.ProgressBar(max_value=total_pages) 
+
+	for page in range(start_page, total_pages+1):
+		results = make_request(api_key, params, page)
+		for movie in results['results']:
+			poster = get_poster(movie['poster_path'])
+			if poster is None:
+				continue
+			genres = [genre_list[genre_map[idx]] for idx in movie['genre_ids']]
+			for genre in genres: 
+				im = Image.fromarray(poster) 
+				filename = FLAGS.image_dir + "/" + genre + movie['poster_path'];
+				os.makedirs(os.path.dirname(filename), exist_ok=True)
+				im.save(filename)
+		pbar.update(page)
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser() 
+	parser.add_argument(
+		'--image_dir', 
+		type=str, 
+		default='posters', 
+		help='Path to folders of labeled images.')
+
+	parser.add_argument(
+		'--folders', 
+		dest='folders', 
+		action='store_true')
+	parser.set_defaults(folders=False)
+
+	parser.add_argument(
+        '--max_pages', 
+        type=int, 
+        default=1000, 
+	)
+
+	FLAGS, _ = parser.parse_known_args()
 	API_KEY = '1463092fc575fb3cac262efb34f94dde'
 	PARAMS = {
 		'language' : 'en-US',
@@ -123,12 +172,11 @@ def main():
 		'vote_average.lte' : 5.7,
 	}
 	
-	print(get_genres(API_KEY))
-	exit()
+	# print(get_genres(API_KEY))
+	# exit()
 
-	print('Downloading Movie Posters/Genres...')
-	download_movie_data(API_KEY, PARAMS)
-	print('Done.')
-
-if __name__ == '__main__':
-	main()
+	if (FLAGS.folders): 
+		main_tl(API_KEY, PARAMS, FLAGS)
+	else:
+		main(API_KEY, PARAMS)
+	# main()
