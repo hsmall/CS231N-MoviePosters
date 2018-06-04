@@ -91,6 +91,7 @@ def download_movie_data(api_key, params, start_page=1, max_pages=1000):
 	movie_posters, movie_genres = [], []
 
 	total_pages = make_request(api_key, params)['total_pages']
+	print(total_pages)
 	total_pages = min(total_pages, max_pages)
 	pbar = progressbar.ProgressBar(max_value=total_pages)
 	
@@ -160,16 +161,22 @@ if __name__ == '__main__':
         default=1000, 
 	)
 
+	parser.add_argument(
+		'--genre', 
+		type=int, 
+		default=-1, # romance 
+	)
+
 	FLAGS, _ = parser.parse_known_args()
 	API_KEY = '1463092fc575fb3cac262efb34f94dde'
 	PARAMS = {
 		'language' : 'en-US',
-		'vote_count.gte' : 10,
 		'primary_release_date.lte' : '2017-12-31',
 		'sort_by' : 'vote_average.desc',
 		'include_video' : False,
 		'include_adult' : False,
-		'vote_average.lte' : 5.7,
+		'with_release_type' : 
+
 	}
 	
 	# print(get_genres(API_KEY))
