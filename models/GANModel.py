@@ -75,6 +75,7 @@ class GANModel():
                                 samples = sess.run(
                                         self.sampler,
                                         {self.z : z})
+                               #  samples = (samples+1)/2
                                 #self.writer.add_summary(samples, counter) 
                                 
 
@@ -118,15 +119,17 @@ class GANModel():
                 # print("HERE")
                 # print(X)
                 images = np.reshape(X, (-1, 64, 64, 3))
+                images /= 2.0
+                images += 1.0
                 fig = plt.figure() 
                 rows, columns = 1, X.shape[-1]
                 fig = plt.figure()
                 for i in range(1, rows*columns+1):
                         fig.add_subplot(rows, columns, i)
                         image = images[i-1]
-                        min_val = np.min(image)
-                        max_val = np.max(image) 
-                        image = (image-min_val) / (max_val-min_val)
+                        # min_val = np.min(image)
+                        # max_val = np.max(image) 
+                        # image = (image-min_val) / (max_val-min_val)
                         plt.imshow(image)
                         plt.axis('off')
 
