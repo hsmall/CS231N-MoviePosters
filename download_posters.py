@@ -164,7 +164,7 @@ if __name__ == '__main__':
 	parser.add_argument(
 		'--genre', 
 		type=int, 
-		default=-1, # romance 
+		default=10749, # romance 
 	)
 
 	FLAGS, _ = parser.parse_known_args()
@@ -175,7 +175,7 @@ if __name__ == '__main__':
 		'sort_by' : 'vote_average.desc',
 		'include_video' : False,
 		'include_adult' : False,
-		'with_release_type' : 
+		'with_release_type' : 3
 
 	}
 	
