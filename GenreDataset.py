@@ -27,19 +27,39 @@ class GenreDataset():
                 # print(self.X.shape)
                 # self.X = self.X[:, :, :, :3]
                 self.batch_size = batch_size
-                # print(self.X.shape) 
+                print('batch_size', batch_size)
+                # print(self.X.shape)
+
+        def crop_image(self, img, width, height):
+            h, w, c = img.shape 
+            j = int(np.ceil((h-width)/2.0))
+            i = int(np.ceil((w-height)/2.0))
+            cropped = img[j:j+width, i:i+height]
+            return cropped
+
         def get_batch(self, idx):
             batch_files = self.images[idx*self.batch_size:idx*self.batch_size+self.batch_size] 
             batch = []
             for filename in batch_files: 
-                # img = Image.open(filename) 
-                # img = img.resize((64, 64))
+                img = Image.open(filename)
+                img = np.array(img).astype(np.float32) 
+                h, w, c = img.shape 
+                # j = int(np.ceil((h-185)/2.0))
+                # i = int(np.ceil((w-185)/2.0))
+                # img = img[j:j+185, i:i+185, :]
+                # im = np.zeros((256, 256, 3), dtype=np.float32)
+                # width = int(np.ceil((256-w)/2.0))
+                height = int(np.ceil((h-128)/2.0))
+                width = int(np.ceil((w-128)/2.0))
+                img = img[height:height+128, width:width+128, :]
+                # im[:, width:width+185, :] = img
+                # img = im
                 # img = np.array(img)/225.0
-                # img = img.astype(np.float32)
                 # img /= 2.0
-                img = scipy.misc.imread(filename).astype(np.float) 
-                img = scipy.misc.imresize(img, (64, 64))
-                img = np.array(img)/255 
+                # img = scipy.misc.imread(filename).astype(np.float)
+                # print(img.size)
+                # img = scipy.misc.imresize(img, (64, 64))
+                img /= 255.0 
                 img *= 2.0
                 img -= 1.0
                 # img = np.divide(img, 255)

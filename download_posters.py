@@ -15,10 +15,12 @@ def get_genres(api_key):
         connection = http.client.HTTPSConnection("api.themoviedb.org")
         connection.request("GET", "/3/genre/movie/list?language=en-US&api_key={0}".format(api_key))
 
+        str_response = connection.getresponse().read().decode('utf-8')
+        print(str_response)
         genres = {}
-        for elem in json.loads(connection.getresponse().read())['genres']:
+        for elem in json.loads(str_response)['genres']:
                 genres[elem['id']] = elem['name']
-        
+         
         genre_list = sorted(genres.values())
         genre_map = { key : genre_list.index(value) for key, value in genres.items() }
         
@@ -38,7 +40,7 @@ def build_request(api_key, params, page=None):
 def make_request(api_key, params, page=None):
         connection = http.client.HTTPSConnection("api.themoviedb.org")
         connection.request("GET", build_request(api_key, params, page))
-        return json.loads(connection.getresponse().read())
+        return json.loads(connection.getresponse().read().decode('utf-8'))
 
 # Returns the shape associated with a given poster size (used by the API).
 def get_poster_shape(size):
@@ -135,7 +137,7 @@ def main_tl(api_key, params, FLAGS, start_page=1):
                                 continue
                         genre = genre_list[genre_map[FLAGS.genre]]
                         im = Image.fromarray(poster)
-                        im = im.resize((64, 64))
+                        # im = im.resize((64, 64))
                         filename = FLAGS.image_dir + "/" + genre + movie['poster_path']
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
                         im.save(filename)

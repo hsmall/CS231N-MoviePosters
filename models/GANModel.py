@@ -7,7 +7,7 @@ from GenreDataset import GenreDataset
 import os 
 
 class GANModel(): 
-        def __init__(self, genre, batch_size, z_dims=100, image_shape=(64, 64), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
+        def __init__(self, genre, batch_size, z_dims=64, image_shape=(128, 128), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
                 ## 185 x 278
                 # 128 x 128
                 # 32 x 69
@@ -19,23 +19,24 @@ class GANModel():
                 self.batch_size = batch_size 
                 self.z_dims = z_dims 
 
+                print('batch size', batch_size)
                 self.generator= Generator(alpha=alpha, lr=lr, beta1=beta1)
                 self.discriminator = Discriminator(alpha=alpha, lr=lr, beta1=beta1)
                 
                 self.add_placeholders()
-                z = tf.random_uniform([batch_size, z_dims], -1, 1)
-                # z = tf.truncated_normal([batch_size, z_dims], 0, 0.5)
+                # z = tf.random_uniform([batch_size, z_dims], -1, 1)
+                z = tf.truncated_normal([batch_size, z_dims])
                 self.G_sample = self.generator.build_graph(z)
                 self.z_summary = tf.summary.histogram("z", z)
                 
                 with tf.variable_scope("") as scope:
                        # self.G_sample = self.generator.build_graph(self.z)
-                        self.logits_real, self.logits_real_raw = self.discriminator.build_graph(self.images)
+                        self.logits_real = self.discriminator.build_graph(self.images)
                         #self.sampler = self.generator.sampler(self.z)
                         scope.reuse_variables()
-                        self.logits_fake, self.logits_fake_raw = self.discriminator.build_graph(self.G_sample)
+                        self.logits_fake  = self.discriminator.build_graph(self.G_sample)
 
-                self.D_loss, self.G_loss = self.get_loss(self.logits_real_raw, self.logits_real,  self.logits_fake_raw, self.logits_fake)
+                self.D_loss, self.G_loss = self.get_loss(self.logits_real, self.logits_fake)
                 # print(self.logits_real, self.logits_real_raw,C self.D_loss)
                 # print(self.logits_fake, self.logits_fake_raw, self.G_loss)
                 self.D_loss_summary = tf.summary.scalar("Discriminator_Loss", self.D_loss)
@@ -47,15 +48,17 @@ class GANModel():
 
                 self.D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
                 self.G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
+
+                self.sampler = self.generator.sampler(self.z)
                 self.saver = tf.train.Saver()
 
         def add_placeholders(self): 
                 self.z = tf.placeholder(tf.float32, shape=(None, self.z_dims))
                 self.images = tf.placeholder(tf.float32, shape=(None, self.image_shape[0],self.image_shape[1], 3))
         
-        def get_loss(self, logits_real_raw, logits_real, logits_fake_raw, logits_fake):
-                D_loss = self.discriminator.get_loss(logits_real_raw, logits_real,  logits_fake_raw, logits_fake)
-                G_loss = self.generator.get_loss(logits_real_raw, logits_real, logits_fake_raw, logits_fake)
+        def get_loss(self, logits_real, logits_fake):
+                D_loss = self.discriminator.get_loss(logits_real, logits_fake)
+                G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
         def inverse_transform(self, images): 
             return (images+1.)/2
@@ -77,7 +80,7 @@ class GANModel():
                         print('Epoch #{0} out of {1}: '.format(epoch, num_epochs))
                         if epoch % show_every == 0:
                                 samples = sess.run(
-                                        self.G_sample,
+                                        self.sampler,
                                         {self.z : z})
                                 fig = self.show_images(samples[20:23], True)
                                 plt.show()
@@ -90,8 +93,9 @@ class GANModel():
                                 plt.show()
                                 print() 
 
-                                ex = batches.get_batch(0) 
-                                fig = self.show_images(ex[20:23], True)
+                                ex = batches.get_batch(0)
+                                idx = np.random.randint(0, ex.shape[0])
+                                fig = self.show_images(ex[idx:idx+3], True)
                                 plt.show()
                                 print()
 
@@ -129,8 +133,8 @@ class GANModel():
                             self.saver.save(sess, os.path.join('checkpoint/'+self.genre, 'DCGAN'), global_step=epoch)
                 
                 print('Final images')
-                z = np.random.uniform(0, 1, [5, self.z_dims])
-                samples = sess.run(self.G_sample, {self.z: z})
+                z = np.random.uniform(-1, 1, [100, self.z_dims])
+                samples = sess.run(self.sampler, {self.z: z})
             
                 # self.writter.add_summary(samples, counter) 
 
@@ -186,9 +190,10 @@ class Discriminator():
                 #return tf.nn.leaky_relu(x, alpha=self.alpha) 
                 return tf.maximum(x, self.alpha*x)
 
-        def get_loss(self, logits_real_raw, logits_real, logits_fake_raw, logits_fake):
-                D_loss_left = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(logits_real_raw), logits=logits_real_raw)
-                D_loss_right = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits_fake_raw), logits=logits_fake_raw)
+        def get_loss(self, logits_real, logits_fake):
+                print(logits_real)
+                D_loss_left = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.random_uniform(tf.shape(logits_real), 0.7, 1.2), logits=logits_real)
+                D_loss_right = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.zeros_like(logits_fake), logits=logits_fake)
                 D_loss_left = tf.reduce_mean(D_loss_left)
                 D_loss_right = tf.reduce_mean(D_loss_right)
                 D_loss = D_loss_left + D_loss_right
@@ -197,10 +202,80 @@ class Discriminator():
         def build_graph(self, images): 
                 with tf.variable_scope('discriminator'): 
                         initializer = tf.truncated_normal_initializer(0.02)
-                        # print(images.get_shape())
+
+                        # logits = tf.layers.conv2d(
+                        #         inputs=images, 
+                        #         filters=64, 
+                        #         kernel_size=5, 
+                        #         padding='same', 
+                        #         kernel_initializer=initializer)
+                        # print("conv1", logits.get_shape())
+                        # logits = tf.layers.max_pooling2d(
+                        #         inputs=logits, 
+                        #         pool_size=2,
+                        #         strides=2) 
+                        # print("maxpool", logits.get_shape())
+                        # logits = self.leaky_relu(logits)
+                        #
+                        # logits = tf.layers.conv2d(
+                        #         inputs=logits, 
+                        #         filters=128, 
+                        #         kernel_size=5, 
+                        #         padding='same', 
+                        #         kernel_initializer=initializer)
+                        # print("conv2", logits.get_shape())
+                        # logits = tf.layers.max_pooling2d(
+                        #         inputs=logits, 
+                        #         pool_size=2, 
+                        #         strides=2)
+                        # print("pool", logits.get_shape())
+                        # logits = self.leaky_relu(logits) 
+                        #
+                        # logits = tf.layers.conv2d(
+                        #         inputs=logits, 
+                        #         filters=256, 
+                        #         kernel_size=5, 
+                        #         padding='same', 
+                        #         kernel_initializer=initializer)
+                        # print("conv3", logits.get_shape())
+                        # logits = tf.layers.max_pooling2d(
+                        #         inputs=logits,
+                        #         pool_size=2, 
+                        #         strides=2)
+                        # print("pool", logits.get_shape())
+                        # logits = self.leaky_relu(logits) 
+                        #
+                        # logits = tf.layers.conv2d(
+                        #         inputs=logits, 
+                        #         filters=512, 
+                        #         kernel_size=5, 
+                        #         padding='same', 
+                        #         kernel_initializer=initializer)
+                        # print("conv4", logits.get_shape())
+                        # logits = tf.layers.max_pooling2d(
+                        #         inputs=logits, 
+                        #         pool_size=2, 
+                        #         strides=2)
+                        # print("pool", logits.get_shape())
+                        # logits = self.leaky_relu(logits) 
+                        #
+                        # logits = tf.layers.conv2d(
+                        #         inputs=logits,
+                        #         filters=1,
+                        #         kernel_size=5, 
+                        #         kernel_initializer=initializer)
+                        # print("conv5", logits.get_shape())
+                        # logits = tf.layers.average_pooling2d(
+                        #         inputs=logits, 
+                        #         pool_size=4, 
+                        #         strides=4)
+                        # print("avg", logits.get_shape())
+                        # print(logits.get_shape())
+
+
                         logits = tf.layers.conv2d(
                                 inputs=images, 
-                                filters=64, 
+                                filters=128, 
                                 kernel_size=5, 
                                 strides=2,
                                 padding='same', 
@@ -211,87 +286,59 @@ class Discriminator():
 
                         logits = tf.layers.conv2d(
                                 inputs=logits, 
-                                filters=128, 
-                                kernel_size=5, 
-                                strides=2, 
-                                padding='same', 
-                                kernel_initializer=initializer) 
-                        logits = tf.layers.batch_normalization(
-                                inputs=logits,
-                                epsilon=1e-5,
-                                momentum=0.9,
-                                axis=1, 
-                                training=True) 
-                        logits = self.leaky_relu(logits)
-                        logits = tf.layers.dropout(logits, rate=self.keep_prob)
-                        # print(logits.get_shape())
-
-                        logits = tf.layers.conv2d(
-                                inputs=logits, 
                                 filters=256, 
                                 kernel_size=5, 
                                 strides=2, 
-                                padding='same',
-                                kernel_initializer=initializer) 
-                        logits = tf.layers.batch_normalization(
-                                inputs=logits, 
-                                momentum=0.9,
-                                epsilon=1e-5,
-                                axis=1, 
-                                training=True)
+                                padding='same', 
+                                kernel_initializer=initializer)
                         logits = self.leaky_relu(logits)
-                        logits = tf.layers.dropout(logits, rate=self.keep_prob)
+                        logits = tf.layers.batch_normalization(
+                                inputs=logits,
+                                training=True) 
+                        # logits = self.leaky_relu(logits)
+                        # logits = tf.layers.dropout(logits, rate=self.keep_prob)
                         # print(logits.get_shape())
-
-                        # logits = tf.layers.conv2d(
-                        #         inputs=logits, 
-                        #         filters=512, 
-                        #         kernel_size=5, 
-                        #         strides=2, 
-                        #         padding='same', 
-                        #         kernel_initializer=initializer) 
-                        # logits = tf.layers.batch_normalization(
-                        #         inputs=logits,
-                        #         momentum=0.9,
-                        #         axis=1, 
-                        #         training=True)
-                        # logits = self.leaky_relu(logits) 
 
                         logits = tf.layers.conv2d(
                                 inputs=logits, 
                                 filters=512, 
                                 kernel_size=5, 
                                 strides=2, 
-                                padding='same', 
-                                kernel_initializer=initializer)
+                                padding='same',
+                                kernel_initializer=initializer) 
+                        logits = self.leaky_relu(logits)
                         logits = tf.layers.batch_normalization(
                                 inputs=logits, 
-                                epsilon=1e-5,
-                                momentum=0.9, 
-                                axis=1, 
                                 training=True)
-                        logits = self.leaky_relu(logits)
-
-
+                        # logits = self.leaky_relu(logits)
                         # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-                        print(logits.get_shape().as_list())
-                        # print(logits.get_shape())
 
+                        logits = tf.layers.conv2d(
+                                inputs=logits, 
+                                filters=1024, 
+                                kernel_size=5, 
+                                strides=2, 
+                                padding='same', 
+                                kernel_initializer=initializer)
+                        logits = self.leaky_relu(logits)
+                        logits = tf.layers.batch_normalization(
+                                inputs=logits, 
+                                training=True)
+                        # logits = self.leaky_relu(logits)
+
+                        # logits = tf.average_pooling2d(
+                        #         inputs=logits,
+                        #         pool_size=4, 
+                        #         strides=2, 
+                        # )
                         logits = tf.layers.flatten(logits)
-
-                        # w = tf.get_variable('w', shape=[logits.get_shape().as_list()[-1], 1], initializer=tf.random_normal_initializer(0.02))
-                        # # logits = tf.layers.dense(
-                        # #       inputs=logits, 
-                        # #       units=1, 
-                        # #       activation=tf.nn.sigmoid)
-                        # b = tf.get_variable('b', shape=[1], initializer=tf.zeros_initializer())
-                        # logits_raw = tf.nn.xw_plus_b(logits, w, b)
-                        # print(logits.get_shape())
-                        logits_raw = tf.layers.dense(
+                        print(logits.get_shape())
+                        # logits = tf.layers.flatten(logits)
+                        #
+                        logits = tf.layers.dense(
                                 inputs=logits, 
                                 units=1)
-                        logits = tf.nn.sigmoid(logits_raw)
-                        return logits, logits_raw 
+                        return logits 
 
 class Generator():
         def __init__(self, alpha=0.2, lr=1e-3, beta1=0.5, keep_prob=0.5): 
@@ -304,8 +351,8 @@ class Generator():
                 #return tf.nn.leaky_relu(x, alpha=self.alpha) 
                 return tf.maximum(x, self.alpha * x)
 
-        def get_loss(self, logits_real_raw, logits_real, logits_fake_raw, logits_fake):
-                G_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(logits_fake_raw), logits=logits_fake_raw)
+        def get_loss(self, logits_real, logits_fake):
+                G_loss = tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.random_uniform(tf.shape(logits_fake), 0.7, 1.2), logits=logits_fake)
                 G_loss = tf.reduce_mean(G_loss)
                 return G_loss
 
@@ -324,74 +371,56 @@ class Generator():
                 return self.common_alg(z, False)
 
         def common_alg(self, z, training):
-                        initializer = tf.random_normal_initializer(0.02)
-                        # w = tf.get_variable('w', shape=[z.get_shape().as_list()[-1], 4*4*512], initializer=tf.random_normal_initializer(0.02))
-                        # b = tf.get_variable('b', shape=[4*4*512], initializer=tf.zeros_initializer())
-                        # img = tf.nn.xw_plus_b(z, w, b)
-                        #
-                        # img = tf.reshape(img, (-1, 4, 4, 512))
-                        # print(img.get_shape())
-                         
+                        initializer = tf.random_normal_initializer(0.02) 
+
                         img = tf.layers.dense(
                                 inputs=z, 
-                                units=4*4*512) 
-                        img = tf.reshape(img, (-1, 4, 4, 512))
+                                units=8*8*1024) 
+                        img = tf.reshape(img, (-1, 8, 8, 2048))
+
                         img = tf.layers.batch_normalization(
                                 inputs=img,
-                                momentum=0.9,
-                                axis=1, 
-                                epsilon=1e-5,
                                 training=training)
                         img = tf.nn.relu(img)
-                        # img = tf.layers.dropout(img, rate=self.keep_prob)
+                        print("img dense", img.get_shape())
 
-                        # img = tf.layers.conv2d_transpose(
-                        #         inputs=img, 
-                        #         filters=512, 
-                        #         kernel_size=5, 
-                        #         strides=1, 
-                        #         padding='same', 
-                        #         kernel_initializer=initializer)
-                        # img = tf.layers.batch_normalization(
-                        #         inputs=img, 
-                        #         momentum=0.9,
-                        #         training=training)
+                        img = tf.layers.conv2d_transpose(
+                                inputs=img, 
+                                filters=1024, 
+                                kernel_size=5, 
+                                strides=2, 
+                                padding='same', 
+                                kernel_initializer=initializer)
+                        img = tf.nn.relu(img)
+                        img = tf.layers.batch_normalization(
+                                inputs=img, 
+                                training=training)
                         # img = tf.nn.relu(img)
+                        img = tf.layers.dropout(img, rate=self.keep_prob)
+                        print("img conv1", img.get_shape())
                         # img = tf.layers.batch_normalization(
-                        #       inputs=img,
+                        #       inputs=img, 
                         #       training=True) 
                         # print(img.get_shape())
 
-                        # img = tf.reshape(img, (-1, 4, 4, 512))
+                        img = tf.layers.conv2d_transpose(
+                                inputs=img, 
+                                filters=512, 
+                                kernel_size=5, 
+                                strides=2, 
+                                padding='same', 
+                                kernel_initializer=initializer)
+                        img = tf.nn.relu(img)
+                        img = tf.layers.batch_normalization(
+                                inputs=img, 
+                                training=training)
                         # img = tf.nn.relu(img) 
-
-                        # img = tf.layers.conv2d_transpose(
-                        #         inputs=img, 
-                        #         filters=512, 
-                        #         kernel_size=5, 
-                        #         strides=2, 
-                        #         padding='same',
-                        #         kernel_initializer=initializer)
+                        img = tf.layers.dropout(img, rate=self.keep_prob)
+                        print("img conv2", img.get_shape())
                         # img = tf.layers.batch_normalization(
-                        #         inputs=img, 
-                        #         momentum=0.9,
-                        #         axis=1, 
-                        #         training=training)
-                        # img = tf.nn.relu(img) 
-                        
-                        # img = tf.layers.conv2d_transpose(
-                        #         inputs = img, 
-                        #         filters = 1024, 
-                        #         kernel_size=5, 
-                        #         strides=2, 
-                        #         padding='same', 
-                        #         kernel_initializer=initializer) 
-                        # img = tf.layers.batch_normalization(
-                        #         inputs=img, 
-                        #         momentum=0.9, 
-                        #         axis=1, 
-                        #         training=training)
-                        # img = tf.nn.relu(img) 
+                        #       inputs=img,
+                        #       training=True)
+                        # print(img.get_shape())
 
                         img = tf.layers.conv2d_transpose(
                                 inputs=img, 
@@ -400,54 +429,14 @@ class Generator():
                                 strides=2, 
                                 padding='same', 
                                 kernel_initializer=initializer)
-                        img = tf.layers.batch_normalization(
-                                inputs=img, 
-                                momentum=0.9,
-                                axis=1, 
-                                epsilon=1e-5,
-                                training=training)
                         img = tf.nn.relu(img)
-                        img = tf.layers.dropout(img, rate=self.keep_prob)
-                        # img = tf.layers.batch_normalization(
-                        #       inputs=img, 
-                        #       training=True) 
-                        # print(img.get_shape())
-
-                        img = tf.layers.conv2d_transpose(
-                                inputs=img, 
-                                filters=128, 
-                                kernel_size=5, 
-                                strides=2, 
-                                padding='same', 
-                                kernel_initializer=initializer)
                         img = tf.layers.batch_normalization(
                                 inputs=img, 
-                                momentum=0.9,
-                                axis=1,
-                                epsilon=1e-5,
                                 training=training)
-                        img = tf.nn.relu(img) 
-                        img = tf.layers.dropout(img, rate=self.keep_prob)
-                        # img = tf.layers.batch_normalization(
-                        #       inputs=img,
-                        #       training=True)
-                        # print(img.get_shape())
+                        # img = tf.nn.relu(img)
 
-                        img = tf.layers.conv2d_transpose(
-                                inputs=img, 
-                                filters=64, 
-                                kernel_size=5, 
-                                strides=2, 
-                                padding='same', 
-                                kernel_initializer=initializer)
-                        img = tf.layers.batch_normalization(
-                                inputs=img, 
-                                momentum=0.9,
-                                axis=1,
-                                epsilon=1e-5,
-                                training=training)
-                        img = tf.nn.relu(img) 
                         img = tf.layers.dropout(img, rate=self.keep_prob) 
+                        print("img conv3", img.get_shape())
                         # img = tf.layers.batch_normalization(
                         #       inputs=img, 
                         #       training=True) 
@@ -456,11 +445,11 @@ class Generator():
                         img = tf.layers.conv2d_transpose(
                                 inputs=img, 
                                 filters=3, 
-                                kernel_size=5, 
+                                kernel_size=5,
                                 strides=2, 
                                 padding='same',
                                 kernel_initializer=initializer)
-                        print(img.get_shape().as_list())
+                        print("final image", img.get_shape().as_list())
                         img = tf.nn.tanh(img)
                         # print(img.get_shape())
                         return img
