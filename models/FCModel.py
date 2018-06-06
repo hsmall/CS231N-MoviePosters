@@ -12,7 +12,7 @@ class FCModel(Model):
         self.hidden_layer_sizes = hidden_layer_sizes
         Model.__init__(self, genres, resize_shape)
 
-    def build_graph(self):
+    def build_graph(self, resize_shape=None):
         self.X_placeholder = tf.placeholder(tf.float32, [None] + list(self.image_shape))
         self.y_placeholder = tf.placeholder(tf.float32, [None, self.num_classes])
         self.learning_rate = tf.placeholder(tf.float32, shape=())
@@ -20,11 +20,13 @@ class FCModel(Model):
         self.dropout = 0.5
        
         if resize_shape is None:
-            layers = [self.X_placeholder]
+            layers = [tf.contrib.layers.flatten(self.X_placeholder)]
         else:
-            layers = [tf.image.resize_images(
-                images = self.X_placeholder,
-                size = resize_shape
+            layers = [tf.contrib.layers.flatten(
+                tf.image.resize_images(
+                    images = self.X_placeholder,
+                    size = resize_shape,
+                )
             )]
         
         for hidden_layer_size in self.hidden_layer_sizes:

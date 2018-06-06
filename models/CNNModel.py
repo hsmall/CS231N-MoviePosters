@@ -14,7 +14,7 @@ class CNNModel(Model):
         self.image_shape = image_shape
         self.filter_counts = filter_counts
         self.unit_counts = unit_counts
-        Model.__init__(self, genres)
+        Model.__init__(self, genres, resize_shape)
 
     def build_graph(self, resize_shape):
         self.X_placeholder = tf.placeholder(tf.float32, [None] + list(self.image_shape))
@@ -32,37 +32,34 @@ class CNNModel(Model):
             )]
         
         #filter_counts = [32, 32, 64, 64, 128, 128]
-        filter_counts = [32, 32, 32, 32]
-        for i in range(len(filter_counts)):
+        for i, num_filters in enumerate(self.filter_counts):
             conv_layers.append(self.build_conv_layer(
                 inputs = conv_layers[-1],
-                num_filters = filter_counts[i],
+                num_filters = num_filters,
             ))
             
             conv_layers.append(self.build_conv_layer(
                 inputs = conv_layers[-1],
-                num_filters = filter_counts[i],
+                num_filters = num_filters,
             ))
 
             if i % 2 == 0:
-                #conv_layers.append(tf.layers.max_pooling2d(
-                #   inputs = conv_layers[-1],
-                #   pool_size = 2,
-                #   strides = 2,
-                #   padding = "valid"
-                #))
+                conv_layers.append(tf.layers.max_pooling2d(
+                   inputs = conv_layers[-1],
+                   pool_size = 2,
+                   strides = 2,
+                   padding = "valid"
+                ))
                 
                 conv_layers.append(tf.contrib.layers.layer_norm(
                     inputs = conv_layers[-1],
                 ))
-
+        
         fc_layers = [tf.contrib.layers.flatten(conv_layers[-1])]
-        unit_counts = [1024]
-        #unit_counts = [512]
-        for i in range(len(unit_counts)):
+        for i, num_units in enumerate(self.unit_counts):
             fc_layers.append(self.build_fc_layer(
                 inputs = fc_layers[-1],
-                num_units = unit_counts[i]
+                num_units = num_units
             ))
 
         output = tf.layers.dense(
@@ -76,12 +73,12 @@ class CNNModel(Model):
         
         return output
 
-    def build_conv_layer(self, inputs, num_filters):
+    def build_conv_layer(self, inputs, num_filters, kernel_size=3):
         return tf.layers.dropout(
             inputs = tf.layers.conv2d(
                 inputs = inputs,
                 filters = num_filters,
-                kernel_size = 5,
+                kernel_size = kernel_size,
                 padding = "same",
                 kernel_initializer = tf.contrib.layers.xavier_initializer(),
                 bias_initializer = tf.zeros_initializer(),

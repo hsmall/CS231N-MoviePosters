@@ -14,11 +14,17 @@ class LogisticRegression(Model):
 		self.y_placeholder = tf.placeholder(tf.float32, shape=[None, self.num_classes])
 		self.learning_rate = tf.placeholder(tf.float32, shape=[])
 
-		input_dim = self.image_shape[0]*self.image_shape[1]*self.image_shape[2]
+		if resize_shape is None:
+			X_resized = self.X_placeholder
+			input_dim = self.image_shape[0]*self.image_shape[1]*self.image_shape[2]
+		else:
+			X_resized = tf.image.resize_images(self.X_placeholder, resize_shape)
+			input_dim = resize_shape[0]*resize_shape[1]*self.image_shape[2]
+            
 		self.W = tf.Variable(tf.random_normal(shape=[input_dim, self.num_classes]))
 		self.b = tf.Variable(tf.zeros(shape=[1, self.num_classes]))
 
-		X_flattened = tf.contrib.layers.flatten(self.X_placeholder)
+		X_flattened = tf.contrib.layers.flatten(X_resized)
 		return tf.nn.sigmoid(tf.matmul(X_flattened, self.W) + self.b)
 
 	# Multiclass Cross-Entropy Loss
