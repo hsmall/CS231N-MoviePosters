@@ -59,7 +59,7 @@ class VanillaGANModel():
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
 
-        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None):
+        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None, load=True):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
@@ -67,7 +67,10 @@ class VanillaGANModel():
                 
                 self.sess = sess
 
-                if checkpoint_directory is not None:
+                if checkpoint_directory is not None and load:
+                    self.load_model(checkpoint_directory)
+                    return
+                elif checkpoint_directory is not None:
                     self.load_model(checkpoint_directory)
                     z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
                     samples = sess.run(self.G_sample, {self.z: z})

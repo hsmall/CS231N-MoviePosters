@@ -54,12 +54,15 @@ class LSGANModel():
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
 
-        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1):
+        def fit(self, sess, name, num_epochs=5, checkpoint_directory=None, show_every=1, print_every=1, load=True):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
                 #merged = tf.summary.merge_all()
-                
+                self.sess = sess 
+                if checkpoint_directory is not None: 
+                    self.load_model(checkpoint_directory)
+                    return
                 log_file = "./logs/" + name
                 os.makedirs(os.path.dirname(log_file), exist_ok=True)
                 self.writer = tf.summary.FileWriter(log_file, sess.graph)

@@ -10,7 +10,7 @@ import sys
 from PIL import Image
 
 class DCGANModel(): 
-        def __init__(self, genre, batch_size, z_dims=100, image_shape=(64, 64), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
+        def __init__(self, genre, batch_size,z_dims=100, image_shape=(64, 64), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
                 tf.reset_default_graph()
                 self.image_shape = image_shape
                 self.genre = genre 
@@ -41,7 +41,7 @@ class DCGANModel():
 
                 self.D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
                 self.G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
-
+                
                 self.saver = tf.train.Saver()
 
         def add_placeholders(self): 
@@ -53,12 +53,18 @@ class DCGANModel():
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
 
-        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None):
+        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None, load=False):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
-              
-                if checkpoint_directory is not None: 
+                self.sess = sess
+
+                if checkpoint_directory is not None and load:
+                    checkpoint = tf.train.get_checkpoint_state(checkpoint_directory)
+                    checkpoint_name = os.path.basename(checkpoint.model_checkpoint_path)
+                    self.saver.restore(self.sess, os.path.join(checkpoint_directory, checkpoint_name))
+                    return
+                elif checkpoint_directory is not None:
                     self.load_model(checkpoint_directory)
                     z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
                     samples = sess.run(self.G_sample, {self.z: z})
@@ -76,7 +82,7 @@ class DCGANModel():
                 counter = 1
                 l_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32) 
                 r_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
-                # z = np.random.normal(0, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                
                 z = self.linear_interpolation(l_z, r_z)
                 for epoch in range(0, num_epochs):
                         batches = GenreDataset(self.genre, self.batch_size)
@@ -104,17 +110,9 @@ class DCGANModel():
                                         [self.D_train_op, self.D_loss, self.total_d_sum], 
                                         {self.images: minibatch, self.z: z})
                                                                 
-                                # _, G_loss_curr = sess.run(
-                                #         [self.G_train_op, self.G_loss], 
-                                #         {self.z: z})
                                 _, G_loss_curr, g_summary = sess.run(
                                         [self.G_train_op, self.G_loss, self.total_g_sum], 
                                         {self.z: z})
-
-                                # if (G_loss_curr > 2):
-                                #     _, G_loss_curr = sess.run(
-                                #             [self.G_train_op, self.G_loss], 
-                                #             {self.z:z})
 
 
                                 self.writer.add_summary(d_summary, counter) 
@@ -146,6 +144,11 @@ class DCGANModel():
                 noise[i] = (left[i] * line[i] + right[i] * (1-line[i]))
             return noise
 
+        def load_model(self, directory):
+            checkpoint = tf.train.get_checkpoint_state(directory)
+            checkpoint_name = os.path.basename(checkpoint.model_checkpoint_path)
+            self.saver.restore(self.sess, os.path.join(directory, checkpoint_name))
+
         def save_images(self, X, edit=True):
             if (edit):
                 X += 1
@@ -158,7 +161,6 @@ class DCGANModel():
                 filename = "output/" + self.genre + "/" + self.name + "/" + str(i) + ".jpg"
                 os.makedirs(os.path.dirname(filename), exist_ok=True) 
                 im.save(filename)
-
 
         def show_images(self, X, edit=True):
                 fig = plt.figure()
@@ -299,108 +301,9 @@ class Discriminator():
                         use_bias=False)
 
                 print("logits", logits.get_shape())
-                # logits = self.cv1(x)
-                # logits = self.relu1(logits)
-                #
-                # logits = self.cv2(logits)
-                # logits = self.bn2(logits)
-                # logits = self.relu2(logits) 
-                #
-                # logits = self.cv3(logits)
-                # logits = self.bn3(logits)
-                # logits = self.relu3(logits) 
-                #
-                # logits = self.cv4(logits)
-                # logits = self.bn4(logits)
-                # logits = self.relu4(logits)
-                #
-                # logits = self.cv5(logits)
 
                 return logits 
 
-        # def build_graph(self, images): 
-        #         with tf.variable_scope('discriminator'): 
-        #                 initializer = tf.truncated_normal_initializer(0.02)
-        #
-        #                 logits = tf.layers.conv2d(
-        #                         inputs=images, 
-        #                         filters=64,
-        #                         kernel_size=5, 
-        #                         strides=2,
-        #                         padding='same',
-        #                         activation=self.leaky_relu, 
-        #                         name='conv2d_1',
-        #                         kernel_initializer=initializer)
-        #                 logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-        #                 print(logits.get_shape())
-        #
-        #
-        #                 logits = tf.layers.conv2d(
-        #                         inputs=logits, 
-        #                         filters=128, 
-        #                         kernel_size=5, 
-        #                         strides=2, 
-        #                         padding='same',
-        #                         name='conv2d_2',
-        #                         kernel_initializer=initializer)
-        #                 logits = tf.layers.batch_normalization(
-        #                         inputs=logits,
-        #                         training=True)
-        #                 logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-        #
-        #                 logits = tf.layers.conv2d(
-        #                         inputs=logits, 
-        #                         filters=256, 
-        #                         kernel_size=5, 
-        #                         strides=2,
-        #                         name='conv2d_3',
-        #                         padding='same',
-        #                         kernel_initializer=initializer) 
-        #                 logits = tf.layers.batch_normalization(
-        #                         inputs=logits, 
-        #                         training=True)
-        #                 logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-        #
-        #                 logits = tf.layers.conv2d(
-        #                         inputs=logits, 
-        #                         filters=512, 
-        #                         kernel_size=5, 
-        #                         strides=2, 
-        #                         padding='same',
-        #                         name='conv2d_4',
-        #                         kernel_initializer=initializer)
-        #                 logits = tf.layers.batch_normalization(
-        #                         inputs=logits, 
-        #                         training=True)
-        #                 logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-        #
-        #                 # logits = tf.layers.conv2d(
-        #                 #         inputs=logits, 
-        #                 #         filters=2048, 
-        #                 #         kernel_size=5, 
-        #                 #         strides=2, 
-        #                 #         padding='same', 
-        #                 #         kernel_initializer=initializer)
-        #                 # # logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.batch_normalization(
-        #                 #         inputs=logits, 
-        #                 #         training=True)
-        #                 # logits = self.leaky_relu(logits)
-        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
-        #                 # logits = self.leaky_relu(logits)
-        #                 
-        #                 logits = tf.layers.flatten(logits)
-        #                 print(logits.get_shape())
-        #                 
-        #                 logits = tf.layers.dense(
-        #                         inputs=logits, 
-        #                         units=1)
-        #                 return logits 
-        #
 class Generator():
         def __init__(self, alpha=0.2, lr=1e-3, beta1=0.5, keep_prob=0.5): 
                 self.alpha = alpha
@@ -489,20 +392,6 @@ class Generator():
 
                 print('img', img.get_shape())
 
-                # img = tf.layers.conv2d_transpose(
-                #         inputs=img, 
-                #         filters=512, 
-                #         kernel_size=4, 
-                #         strides=2, 
-                #         padding='same', 
-                #         use_bias=False)
-                # img = tf.layers.batch_normalization(
-                #         inputs=img, 
-                #         training=True)
-                # img = tf.nn.relu(img) 
-                #
-                # print('conv1', img.get_shape())
-                
                 img = tf.layers.conv2d_transpose(
                         inputs=img, 
                         filters=256, 
@@ -555,163 +444,10 @@ class Generator():
 
                 print('conv5 output', img.get_shape())
                 img = tf.nn.tanh(img)
-                # img = self.dense1(z) 
-                # img = self.bn1(img) 
-
-                # img = self.relu1(img) 
-                #
-                # img = self.reshape1(img)
-                #
-                # img = self.cv1(img)
-                # img = self.bn1(img)
-                # img = self.relu1(img)
-                #
-                # img = self.cv2(img)
-                # img = self.bn2(img)
-                # img = self.relu2(img) 
-                #
-                # img = self.cv3(img)
-                # img = self.bn3(img)
-                # img = self.relu3(img) 
-                #
-                # img = self.cv4(img)
-                # img = self.bn4(img)
-                # img = self.relu4(img) 
-                #
-                # img = self.cv5(img)
-                # img = self.tanh1(img)
                 return img
         
         def sampler(self, z):
             with tf.variable_scope('generator') as scope: 
                 scope.reuse_variables()
                 return self.common_alg(z, False)
-
-        # def common_alg(self, z, training):
-        #     img = tf.layers.Conv2D(
-        #             filters=512, 
-        #             kernel_size=5, 
-        #             strides=2, 
-        #             padding='same')
-        #     img = tf.layers.BatchNormalization()
-        #     img = tf.layers.InputSpec
-
-        # def common_alg(self, z, training):
-        #                 initializer = tf.random_normal_initializer(0.02) 
-        #
-        #                 img = tf.layers.dense(
-        #                         inputs=z, 
-        #                         units=4*4*512) 
-        #                 img = tf.reshape(img, (-1, 4, 4, 512))
-        #
-        #                 # img = tf.layers.batch_normalization(
-        #                 #         inputs=img,
-        #                 #         training=training)
-        #                 # img = tf.nn.relu(img)
-        #                 print("img dense", img.get_shape())
-        #                 # img = tf.layers.conv2d_transpose(
-        #                 #         inputs=img, 
-        #                 #         filters=512, 
-        #                 #         kernel_size=4, 
-        #                 #         strides=2, 
-        #                 #         padding='same', 
-        #                 #         name='deconv_11', 
-        #                 #         kernel_initializer=initializer)
-        #                 # img = tf.layers.batch_normalization(
-        #                 #         inputs =img, 
-        #                 #         training=True)
-        #                 # img = tf.nn.relu(img)
-        #                 # print("first conv", img.get_shape())
-        #                 img = tf.layers.conv2d_transpose(
-        #                         inputs=img, 
-        #                         filters=256, 
-        #                         kernel_size=4, 
-        #                         strides=2, 
-        #                         padding='same',
-        #                         name='deconv_1',
-        #                         kernel_initializer=initializer)
-        #                 # img = tf.nn.relu(img)
-        #                 img = tf.layers.batch_normalization(
-        #                         inputs=img, 
-        #                         training=True)
-        #                 img = tf.nn.relu(img)
-        #                 # img = tf.layers.dropout(
-        #                 #         img, 
-        #                 #         rate=self.keep_prob) 
-        #
-        #                 img = tf.layers.conv2d_transpose(
-        #                         inputs=img, 
-        #                         filters=128, 
-        #                         kernel_size=5, 
-        #                         strides=2, 
-        #                         padding='same', 
-        #                         name='deconv_2',
-        #                         kernel_initializer=initializer)
-        #                 # img = tf.nn.relu(img)
-        #                 img = tf.layers.batch_normalization(
-        #                         inputs=img, 
-        #                         training=training)
-        #                 img = tf.nn.relu(img)
-        #                 # img = tf.nn.relu(img)
-        #                 # img = tf.layers.dropout(img, rate=self.keep_prob)
-        #                 print("img conv1", img.get_shape())
-        #                 # img = tf.layers.batch_normalization(
-        #                 #       inputs=img, 
-        #                 #       training=True) 
-        #                 # print(img.get_shape())
-        #
-        #                 img = tf.layers.conv2d_transpose(
-        #                         inputs=img, 
-        #                         filters=64, 
-        #                         kernel_size=5, 
-        #                         strides=2, 
-        #                         padding='same', 
-        #                         name='deconv_3',
-        #                         kernel_initializer=initializer)
-        #                 # img = tf.nn.relu(img)
-        #                 img = tf.layers.batch_normalization(
-        #                         inputs=img, 
-        #                         training=training)
-        #                 img = tf.nn.relu(img) 
-        #                 # img = tf.layers.dropout(img, rate=self.keep_prob)
-        #                 print("img conv2", img.get_shape())
-        #                 # img = tf.layers.batch_normalization(
-        #                 #       inputs=img,
-        #                 #       training=True)
-        #                 # print(img.get_shape())
-        #
-        #                 # 4, 2 if 
-        #                 # img = tf.layers.conv2d_transpose(
-        #                 #         inputs=img, 
-        #                 #         filters=128, 
-        #                 #         kernel_size=5, 
-        #                 #         strides=2, 
-        #                 #         padding='same', 
-        #                 #         kernel_initializer=initializer)
-        #                 # # img = tf.nn.relu(img)
-        #                 # img = tf.layers.batch_normalization(
-        #                 #         inputs=img, 
-        #                 #         training=training)
-        #                 # img = tf.nn.relu(img)
-        #                 #
-        #                 # img = tf.layers.dropout(img, rate=self.keep_prob) 
-        #                 # print("img conv3", img.get_shape())
-        #                 # img = tf.layers.batch_normalization(
-        #                 #       inputs=img, 
-        #                 #       training=True) 
-        #                 # print(img.get_shape())
-        #
-        #                 img = tf.layers.conv2d_transpose(
-        #                         inputs=img, 
-        #                         filters=3, 
-        #                         kernel_size=5,
-        #                         strides=2,
-        #                         name='deconv_4',
-        #                         padding='same',
-        #                         kernel_initializer=initializer)
-        #                 print("final image", img.get_shape().as_list())
-        #                 # img = tf.layers.dropout(img, rate=self.keep_prob)
-        #                 img = tf.nn.tanh(img)
-        #                 # print(img.get_shape())
-        #                 return img
 
