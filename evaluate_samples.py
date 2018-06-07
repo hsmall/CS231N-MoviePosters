@@ -41,10 +41,11 @@ def get_inception_scores(samples):
     print("Inception Std", score[1])
     
 def get_ssim(gold, samples):
-    ssims = np.zeros((len(samples), gold.shape[0]))
-    pbar = Progbar(target=len(samples) * gold.shape[0])
+    samples = np.array(samples)
+    ssims = np.zeros((samples.shape[0], gold.shape[0]))
+    pbar = Progbar(target=samples.shape[0] * gold.shape[0])
     count = 0
-    for i in range(0, len(samples)):
+    for i in range(0, samples.shape[0]):
         img = samples[i] 
         for j in range(0, gold.shape[0]):
             gold_img = gold[j]
@@ -54,7 +55,7 @@ def get_ssim(gold, samples):
             pbar.update(count)
     ssims_averages = np.mean(ssims, axis=0) 
     ssims_averages = np.mean(ssims_averages, axis=0)
-    ssims_std = np.std(ssims_averages, axis=0)
+    ssims_std = np.std(ssims)
     print("SSIM Mean:", ssims_averages)
     print("SSIM Std:", ssims_std)
 
@@ -74,6 +75,7 @@ def main():
     gold = get_gold(FLAGS.genre)
     samples = get_samples(FLAGS.genre, FLAGS.samples)
 
+    get_inception_scores(samples)
     get_ssim(gold, samples)
     # get_inception_scores(samples)
 

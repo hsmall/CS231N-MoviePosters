@@ -83,7 +83,10 @@ class VanillaGANModel():
                 sess.run(tf.global_variables_initializer())
                 
                 counter = 1
-                z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32) 
+                l_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                r_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                z = self.linear_interpolation(l_z, r_z)
+
 
                 for epoch in range(0, num_epochs):
                         batches = GenreDataset(self.genre, self.batch_size)
@@ -139,6 +142,13 @@ class VanillaGANModel():
             checkpoint = tf.train.get_checkpoint_state(directory) 
             name = os.path.basename(checkpoint.model_checkpoint_path)
             self.saver.restore(self.sess, os.path.join(directory, name)) 
+
+        def linear_interpolation(self, left, right):
+            line = np.linspace(0, 1, self.batch_size)
+            noise = np.zeros((self.batch_size, self.z_dims))
+            for i in range(0, self.batch_size):
+                noise[i] = (left[i] * line[i] + right[i] * (1-line[i]))
+            return noise
     
         def save_images(self, X, edit=True):
             if (edit):

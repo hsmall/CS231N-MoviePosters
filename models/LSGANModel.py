@@ -43,7 +43,6 @@ class LSGANModel():
                 self.D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
                 self.G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
 
-                # self.sampler = self.generator.sampler(self.z)
                 self.saver = tf.train.Saver()
 
         def add_placeholders(self): 
@@ -67,8 +66,9 @@ class LSGANModel():
                 sess.run(tf.global_variables_initializer())
                 
                 counter = 1
-                # z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32) 
-                z = np.random.normal(0, 1, [self.batch_size, self.z_dims])
+                l_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32) 
+                r_z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                z = self.linear_interpolation(l_z, r_z)
                 for epoch in range(0, num_epochs):
                         batches = GenreDataset(self.genre, self.batch_size)
                         num_batches = batches.num_batches()+1
@@ -128,6 +128,13 @@ class LSGANModel():
                 plt.show()
                 print() 
                 self.save_images(samples)
+
+        def linear_interpolation(self, left, right):
+            line = np.linspace(0, 1, self.batch_size)
+            noise = np.zeros((self.batch_size, self.z_dims))
+            for i in range(0, self.batch_size):
+                noise[i] = (left[i] * line[i] + right[i] * (1-line[i]))
+            return noise
 
         def load_model(self, directory):
             checkpoint = tf.train.get_checkpoint_state(directory)
