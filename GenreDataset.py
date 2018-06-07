@@ -42,18 +42,31 @@ class GenreDataset():
             batch = []
             for filename in batch_files: 
                 img = Image.open(filename)
-                img = np.array(img).astype(np.float32) 
+                img = img.convert('RGB')
+                img = img.resize((64, 64), Image.ANTIALIAS)
+                # img = img.resize((138, 128), Image.ANTIALIAS)
+                img = np.array(img).astype(np.float32)
+                # print(img.shape)
+                # print(img.shape)
+                # batch.append(img)
+                # # continue
                 h, w, c = img.shape 
-                # j = int(np.ceil((h-185)/2.0))
-                # i = int(np.ceil((w-185)/2.0))
-                # img = img[j:j+185, i:i+185, :]
-                # im = np.zeros((256, 256, 3), dtype=np.float32)
-                # width = int(np.ceil((256-w)/2.0))
-                height = int(np.ceil((h-128)/2.0))
-                width = int(np.ceil((w-128)/2.0))
-                img = img[height:height+128, width:width+128, :]
-                # im[:, width:width+185, :] = img
+                # # j = int(np.ceil((h-185)/2.0))
+                # # i = int(np.ceil((w-185)/2.0))
+                # # img = img[j:j+185, i:i+185, :]
+                # im = np.zeros((128, 128, 3), dtype=np.float32)
+                # width = int(np.ceil((128-w)/2.0))
+                # # height = int(np.ceil((h-256)/2.0))
+                # # width = int(np.ceil((w-128)/2.0))
+                # # img = img[height:height+256, width:width+128, :]
+                # height = int(np.ceil((h-64)/2.0))
+                # width = int(np.ceil((w-64)/2.0))
+                # img = img[height:height+64, width:width+64, :]
+                # # print(img.shape)
+                # im[:, width:width+92, :] = img
+                # #
                 # img = im
+                # print(img.shape)
                 # img = np.array(img)/225.0
                 # img /= 2.0
                 # img = scipy.misc.imread(filename).astype(np.float)

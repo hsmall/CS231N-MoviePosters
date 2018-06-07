@@ -2,6 +2,7 @@ import http.client
 import json
 from io import BytesIO
 from PIL import Image
+# import cv2
 import numpy as np
 import requests
 import time
@@ -123,6 +124,7 @@ def main(api_key, params):
 
 def main_tl(api_key, params, FLAGS, start_page=1):
         params['with_genres'] = FLAGS.genre
+        params['primary_release_date.gte'] = '1980'
         max_pages = FLAGS.max_pages
         genre_list, genre_map = get_genres(API_KEY)
         total_pages = make_request(api_key, params)['total_pages']
@@ -132,7 +134,7 @@ def main_tl(api_key, params, FLAGS, start_page=1):
         for page in range(start_page, total_pages+1):
                 results = make_request(api_key, params, page)
                 for movie in results['results']:
-                        poster = get_poster(movie['poster_path'])
+                        poster = get_poster(movie['poster_path'], 'w92')
                         if poster is None:
                                 continue
                         genre = genre_list[genre_map[FLAGS.genre]]

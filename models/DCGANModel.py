@@ -9,12 +9,8 @@ import os
 import sys
 from PIL import Image
 
-class GANModel(): 
+class DCGANModel(): 
         def __init__(self, genre, batch_size, z_dims=100, image_shape=(64, 64), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
-                ## 185 x 278
-                # 128 x 128
-                # 32 x 69
-                # tf.reset_default_graph()
                 tf.reset_default_graph()
                 self.image_shape = image_shape
                 self.genre = genre 
@@ -26,7 +22,7 @@ class GANModel():
                 self.discriminator = Discriminator(alpha=alpha, lr=lr, beta1=beta1)
                 
                 self.add_placeholders()
-                #z = tf.random_uniform([batch_size, z_dims], -1, 1)
+                
                 self.G_sample = self.generator(self.z)
                 self.z_summary = tf.summary.histogram("z", self.z)
                 
@@ -46,7 +42,6 @@ class GANModel():
                 self.D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
                 self.G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
 
-                # self.sampler = self.generator.sampler(self.z)
                 self.saver = tf.train.Saver()
 
         def add_placeholders(self): 
@@ -57,20 +52,17 @@ class GANModel():
                 D_loss = self.discriminator.get_loss(logits_real, logits_fake)
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
-        
-        def inverse_transform(self, images): 
-            return (images+1.)/2
 
         def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
-               
-                if checkpoint_directory is None: 
+              
+                if checkpoint_directory is not None: 
                     self.load_model(checkpoint_directory)
-                    z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32) 
-                    samples = sess.run(self.G_sample, {self.z: z}) 
-                    fig = self.show_images(samples[0:3]) 
+                    z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                    samples = sess.run(self.G_sample, {self.z: z})
+                    fig = self.show_images(samples[0:3])
                     plt.show()
                     print()
                     self.save_images(samples)
@@ -102,6 +94,7 @@ class GANModel():
                                 fig = self.show_images(ex[idx:idx+3], True)
                                 plt.show()
                                 print()
+                        # for batch, minibatch in enumerate(batches): 
                         for batch_idx in range(0, num_batches-2):
                                 minibatch = batches.get_batch(batch_idx)
                                 
@@ -109,9 +102,18 @@ class GANModel():
                                         [self.D_train_op, self.D_loss, self.total_d_sum], 
                                         {self.images: minibatch, self.z: z})
                                                                 
+                                # _, G_loss_curr = sess.run(
+                                #         [self.G_train_op, self.G_loss], 
+                                #         {self.z: z})
                                 _, G_loss_curr, g_summary = sess.run(
                                         [self.G_train_op, self.G_loss, self.total_g_sum], 
                                         {self.z: z})
+
+                                # if (G_loss_curr > 2):
+                                #     _, G_loss_curr = sess.run(
+                                #             [self.G_train_op, self.G_loss], 
+                                #             {self.z:z})
+
 
                                 self.writer.add_summary(d_summary, counter) 
                                 self.writer.add_summary(g_summary, counter)
@@ -140,17 +142,13 @@ class GANModel():
                 X /= 2.0 
             for i in range(1, X.shape[0]+1):
                 image = X[i-1] 
-                image *= 255
+                image *= 255 
                 image = image.astype('uint8')
                 im = Image.fromarray(image) 
-                filename = "output/" + self.genre + "/" + self.name + "/" + str(i)
+                filename = "output/" + self.genre + "/" + self.name + "/" + str(i) + ".jpg"
                 os.makedirs(os.path.dirname(filename), exist_ok=True) 
                 im.save(filename)
 
-        def load_model(self, directory):
-            checkpoint = tf.train.get_checkpoint_state(directory)
-            name = os.path.basename(checkpoint.model_checkpoint_path) 
-            self.saver.restore(self.sess, os.path.join(directory, name)) 
 
         def show_images(self, X, edit=True):
                 fig = plt.figure()
@@ -189,7 +187,52 @@ class Discriminator():
                 D_loss_right = tf.reduce_mean(D_loss_right)
                 D_loss = D_loss_left + D_loss_right
                 return D_loss
- 
+
+        def build_graph(self):
+            with tf.variable_scope(''):
+                initializer = tf.truncated_normal_initializer(0.02)
+                self.cv1 = tf.layers.Conv2D(
+                        filters=64, 
+                        kernel_size=5, 
+                        strides=2, 
+                        kernel_initializer=initializer,
+                        padding="same")
+                self.relu1 = self.leaky_relu 
+
+                self.cv2 = tf.layers.Conv2D(
+                        filters=128, 
+                        kernel_size=5, 
+                        strides=2, 
+                        kernel_initializer=initializer,
+                        padding='same')
+                self.bn2 = tf.layers.batch_normalization 
+                self.relu2 = self.leaky_relu 
+
+                self.cv3 = tf.layers.Conv2D(
+                        filters=256, 
+                        kernel_size=5, 
+                        strides=2, 
+                        kernel_initializer=initializer,
+                        padding='same')
+                self.bn3 = tf.layers.batch_normalization 
+                self.relu3 = self.leaky_relu 
+
+                self.cv4 = tf.layers.Conv2D(
+                        filters=512, 
+                        kernel_size=5, 
+                        strides=2, 
+                        kernel_initializer=initializer,
+                        padding='same')
+                self.bn4 = tf.layers.batch_normalization
+                self.relu4 = self.leaky_relu 
+
+                self.cv5 = tf.layers.Conv2D(
+                        filters=1, 
+                        kernel_size=4, 
+                        strides=2, 
+                        kernel_initializer=initializer,
+                        padding='same')
+    
         def __call__(self, x, training=True):
             with tf.variable_scope("discriminator"):
                 logits = tf.layers.conv2d(
@@ -199,8 +242,7 @@ class Discriminator():
                         strides=2, 
                         padding="same", 
                         use_bias=False)
-                logits = self.leaky_relu(logits)
-                print("dis", logits.get_shape())
+                logits = self.leaky_relu(logits) 
 
                 logits = tf.layers.conv2d(
                         inputs=logits, 
@@ -213,7 +255,6 @@ class Discriminator():
                         inputs=logits, 
                         training=True)
                 logits = self.leaky_relu(logits) 
-                print("dis", logits.get_shape())
 
                 logits = tf.layers.conv2d(
                         inputs=logits, 
@@ -226,7 +267,6 @@ class Discriminator():
                         inputs=logits, 
                         training=True)
                 logits = self.leaky_relu(logits) 
-                print("dis", logits.get_shape())
 
                 logits = tf.layers.conv2d(
                         inputs=logits, 
@@ -239,7 +279,6 @@ class Discriminator():
                         inputs=logits, 
                         training=True)
                 logits = self.leaky_relu(logits) 
-                print("dis", logits.get_shape())
 
                 logits = tf.layers.conv2d(
                         inputs=logits, 
@@ -248,8 +287,110 @@ class Discriminator():
                         strides=2, 
                         padding="same", 
                         use_bias=False)
+
+                print("logits", logits.get_shape())
+                # logits = self.cv1(x)
+                # logits = self.relu1(logits)
+                #
+                # logits = self.cv2(logits)
+                # logits = self.bn2(logits)
+                # logits = self.relu2(logits) 
+                #
+                # logits = self.cv3(logits)
+                # logits = self.bn3(logits)
+                # logits = self.relu3(logits) 
+                #
+                # logits = self.cv4(logits)
+                # logits = self.bn4(logits)
+                # logits = self.relu4(logits)
+                #
+                # logits = self.cv5(logits)
+
                 return logits 
 
+        # def build_graph(self, images): 
+        #         with tf.variable_scope('discriminator'): 
+        #                 initializer = tf.truncated_normal_initializer(0.02)
+        #
+        #                 logits = tf.layers.conv2d(
+        #                         inputs=images, 
+        #                         filters=64,
+        #                         kernel_size=5, 
+        #                         strides=2,
+        #                         padding='same',
+        #                         activation=self.leaky_relu, 
+        #                         name='conv2d_1',
+        #                         kernel_initializer=initializer)
+        #                 logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
+        #                 print(logits.get_shape())
+        #
+        #
+        #                 logits = tf.layers.conv2d(
+        #                         inputs=logits, 
+        #                         filters=128, 
+        #                         kernel_size=5, 
+        #                         strides=2, 
+        #                         padding='same',
+        #                         name='conv2d_2',
+        #                         kernel_initializer=initializer)
+        #                 logits = tf.layers.batch_normalization(
+        #                         inputs=logits,
+        #                         training=True)
+        #                 logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
+        #
+        #                 logits = tf.layers.conv2d(
+        #                         inputs=logits, 
+        #                         filters=256, 
+        #                         kernel_size=5, 
+        #                         strides=2,
+        #                         name='conv2d_3',
+        #                         padding='same',
+        #                         kernel_initializer=initializer) 
+        #                 logits = tf.layers.batch_normalization(
+        #                         inputs=logits, 
+        #                         training=True)
+        #                 logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
+        #
+        #                 logits = tf.layers.conv2d(
+        #                         inputs=logits, 
+        #                         filters=512, 
+        #                         kernel_size=5, 
+        #                         strides=2, 
+        #                         padding='same',
+        #                         name='conv2d_4',
+        #                         kernel_initializer=initializer)
+        #                 logits = tf.layers.batch_normalization(
+        #                         inputs=logits, 
+        #                         training=True)
+        #                 logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
+        #
+        #                 # logits = tf.layers.conv2d(
+        #                 #         inputs=logits, 
+        #                 #         filters=2048, 
+        #                 #         kernel_size=5, 
+        #                 #         strides=2, 
+        #                 #         padding='same', 
+        #                 #         kernel_initializer=initializer)
+        #                 # # logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.batch_normalization(
+        #                 #         inputs=logits, 
+        #                 #         training=True)
+        #                 # logits = self.leaky_relu(logits)
+        #                 # logits = tf.layers.dropout(logits, rate=self.keep_prob)
+        #                 # logits = self.leaky_relu(logits)
+        #                 
+        #                 logits = tf.layers.flatten(logits)
+        #                 print(logits.get_shape())
+        #                 
+        #                 logits = tf.layers.dense(
+        #                         inputs=logits, 
+        #                         units=1)
+        #                 return logits 
+        #
 class Generator():
         def __init__(self, alpha=0.2, lr=1e-3, beta1=0.5, keep_prob=0.5): 
                 self.alpha = alpha
@@ -260,6 +401,7 @@ class Generator():
                 self.build_graph()
 
         def leaky_relu(self, x): 
+                #return tf.nn.leaky_relu(x, alpha=self.alpha) 
                 return tf.maximum(x, self.alpha * x)
 
         def get_loss(self, logits_real, logits_fake):
@@ -270,7 +412,59 @@ class Generator():
         def get_train_op(self, G_loss):
                 G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator')
                 return tf.train.AdamOptimizer(self.lr, beta1=self.beta1).minimize(G_loss, var_list=G_vars)
-        
+
+        # 16384
+        def build_graph(self):
+                with tf.variable_scope(''):
+                    initializer = tf.random_normal_initializer(0.02)
+                    
+                    self.dense1 = tf.layers.Dense(
+                            units=4*4*512)
+                    self.reshape1 = tf.keras.layers.Reshape((4, 4, 512))
+
+                    self.cv1 = tf.layers.Conv2DTranspose(
+                            filters=512, 
+                            kernel_size=5, 
+                            strides=2, 
+                            padding="same",
+                            kernel_initializer=initializer)
+                    self.bn1 = tf.layers.batch_normalization
+                    self.relu1 = tf.nn.relu
+
+                    self.cv2 = tf.layers.Conv2DTranspose(
+                            filters=256, 
+                            kernel_size=5, 
+                            strides=2, 
+                            padding="same",
+                            kernel_initializer=initializer)
+                    self.bn2 = tf.layers.batch_normalization
+                    self.relu2 = tf.nn.relu 
+
+                    self.cv3 = tf.layers.Conv2DTranspose(
+                            filters=128, 
+                            kernel_size=5, 
+                            strides=2, 
+                            padding="same",
+                            kernel_initializer=initializer)
+                    self.bn3 = tf.layers.batch_normalization
+                    self.relu3 = tf.nn.relu
+
+                    self.cv4 = tf.layers.Conv2DTranspose(
+                            filters=64, 
+                            kernel_size=5, 
+                            strides=2, 
+                            padding='same',
+                            kernel_initializer=initializer)
+                    self.bn4 = tf.layers.batch_normalization
+                    self.relu4 = tf.nn.relu 
+                    
+                    self.cv5 = tf.layers.Conv2DTranspose(
+                            filters=3, 
+                            kernel_size=5, 
+                            strides=2, 
+                            padding="same",
+                            kernel_initializer=initializer)
+                    self.tanh1 = tf.nn.tanh 
         def __call__(self, z, training=True):
             with tf.variable_scope("generator"):
                 img = tf.layers.dense(
@@ -284,6 +478,20 @@ class Generator():
                 img = tf.reshape(img, (-1, 4, 4, 512))
 
                 print('img', img.get_shape())
+
+                # img = tf.layers.conv2d_transpose(
+                #         inputs=img, 
+                #         filters=512, 
+                #         kernel_size=4, 
+                #         strides=2, 
+                #         padding='same', 
+                #         use_bias=False)
+                # img = tf.layers.batch_normalization(
+                #         inputs=img, 
+                #         training=True)
+                # img = tf.nn.relu(img) 
+                #
+                # print('conv1', img.get_shape())
                 
                 img = tf.layers.conv2d_transpose(
                         inputs=img, 
