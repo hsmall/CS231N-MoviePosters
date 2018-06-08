@@ -1,3 +1,5 @@
+# We got this code from https://github.com/openai/improved-gan! All credit goes to Salimans et al.
+
 # Code derived from tensorflow/tensorflow/models/image/imagenet/classify_image.py
 from __future__ import absolute_import
 from __future__ import division

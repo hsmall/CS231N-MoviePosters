@@ -139,17 +139,9 @@ def main_tl(api_key, params, FLAGS, start_page=1):
                                 continue
                         genre = genre_list[genre_map[FLAGS.genre]]
                         im = Image.fromarray(poster)
-                        # im = im.resize((64, 64))
                         filename = FLAGS.image_dir + "/" + genre + movie['poster_path']
                         os.makedirs(os.path.dirname(filename), exist_ok=True)
                         im.save(filename)
-                        #genres = [genre_list[genre_map[idx]] for idx in movie['genre_ids']]
-                        # for genre in genres: 
-                        #       im = Image.fromarray(poster) 
-                        #       filename = FLAGS.image_dir + "/" + genre + movie['poster_path'];
-                        #       os.makedirs(os.path.dirname(filename), exist_ok=True)
-                        #       im.save(filename)
-                        
                 pbar.update(page)
 
 

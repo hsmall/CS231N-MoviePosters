@@ -58,11 +58,21 @@ class LSGANModel():
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
-                #merged = tf.summary.merge_all()
                 self.sess = sess 
-                if checkpoint_directory is not None: 
+
+                if checkpoint_directory is not None and load:
                     self.load_model(checkpoint_directory)
                     return
+                elif checkpoint_directory is not None:
+                    self.load_model(checkpoint_directory)
+                    z = np.random.uniform(-1, 1, [self.batch_size, self.z_dims]).astype(np.float32)
+                    samples = sess.run(self.G_sample, {self.z: z})
+                    fig = self.show_images(samples[0:3])
+                    plt.show()
+                    print()
+                    self.save_images(samples)
+                    return
+                    
                 log_file = "./logs/" + name
                 os.makedirs(os.path.dirname(log_file), exist_ok=True)
                 self.writer = tf.summary.FileWriter(log_file, sess.graph)

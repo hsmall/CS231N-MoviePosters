@@ -102,7 +102,6 @@ class DCGANModel():
                                 fig = self.show_images(ex[idx:idx+3], True)
                                 plt.show()
                                 print()
-                        # for batch, minibatch in enumerate(batches): 
                         for batch_idx in range(0, num_batches-2):
                                 minibatch = batches.get_batch(batch_idx)
                                 
@@ -182,8 +181,6 @@ class Discriminator():
                 self.beta1 = beta1
                 self.keep_prob = keep_prob
 
-                self.build_graph()
-
         def get_train_op(self, D_loss):
                 D_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'discriminator')
                 return tf.train.AdamOptimizer(self.lr, beta1=self.beta1).minimize(D_loss, var_list=D_vars)
@@ -200,51 +197,6 @@ class Discriminator():
                 D_loss = D_loss_left + D_loss_right
                 return D_loss
 
-        def build_graph(self):
-            with tf.variable_scope(''):
-                initializer = tf.truncated_normal_initializer(0.02)
-                self.cv1 = tf.layers.Conv2D(
-                        filters=64, 
-                        kernel_size=5, 
-                        strides=2, 
-                        kernel_initializer=initializer,
-                        padding="same")
-                self.relu1 = self.leaky_relu 
-
-                self.cv2 = tf.layers.Conv2D(
-                        filters=128, 
-                        kernel_size=5, 
-                        strides=2, 
-                        kernel_initializer=initializer,
-                        padding='same')
-                self.bn2 = tf.layers.batch_normalization 
-                self.relu2 = self.leaky_relu 
-
-                self.cv3 = tf.layers.Conv2D(
-                        filters=256, 
-                        kernel_size=5, 
-                        strides=2, 
-                        kernel_initializer=initializer,
-                        padding='same')
-                self.bn3 = tf.layers.batch_normalization 
-                self.relu3 = self.leaky_relu 
-
-                self.cv4 = tf.layers.Conv2D(
-                        filters=512, 
-                        kernel_size=5, 
-                        strides=2, 
-                        kernel_initializer=initializer,
-                        padding='same')
-                self.bn4 = tf.layers.batch_normalization
-                self.relu4 = self.leaky_relu 
-
-                self.cv5 = tf.layers.Conv2D(
-                        filters=1, 
-                        kernel_size=4, 
-                        strides=2, 
-                        kernel_initializer=initializer,
-                        padding='same')
-    
         def __call__(self, x, training=True):
             with tf.variable_scope("discriminator"):
                 logits = tf.layers.conv2d(
@@ -259,7 +211,7 @@ class Discriminator():
                 logits = tf.layers.conv2d(
                         inputs=logits, 
                         filters=128, 
-                        kernel_size=4, 
+                        kernel_size=5, 
                         strides=2, 
                         padding="same", 
                         use_bias=False) 
@@ -283,7 +235,7 @@ class Discriminator():
                 logits = tf.layers.conv2d(
                         inputs=logits, 
                         filters=512, 
-                        kernel_size=4, 
+                        kernel_size=5, 
                         strides=2, 
                         padding="same", 
                         use_bias=False)
@@ -311,8 +263,6 @@ class Generator():
                 self.beta1 = beta1
                 self.keep_prob = keep_prob
 
-                self.build_graph()
-
         def leaky_relu(self, x): 
                 #return tf.nn.leaky_relu(x, alpha=self.alpha) 
                 return tf.maximum(x, self.alpha * x)
@@ -326,58 +276,7 @@ class Generator():
                 G_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'generator')
                 return tf.train.AdamOptimizer(self.lr, beta1=self.beta1).minimize(G_loss, var_list=G_vars)
 
-        # 16384
-        def build_graph(self):
-                with tf.variable_scope(''):
-                    initializer = tf.random_normal_initializer(0.02)
-                    
-                    self.dense1 = tf.layers.Dense(
-                            units=4*4*512)
-                    self.reshape1 = tf.keras.layers.Reshape((4, 4, 512))
-
-                    self.cv1 = tf.layers.Conv2DTranspose(
-                            filters=512, 
-                            kernel_size=5, 
-                            strides=2, 
-                            padding="same",
-                            kernel_initializer=initializer)
-                    self.bn1 = tf.layers.batch_normalization
-                    self.relu1 = tf.nn.relu
-
-                    self.cv2 = tf.layers.Conv2DTranspose(
-                            filters=256, 
-                            kernel_size=5, 
-                            strides=2, 
-                            padding="same",
-                            kernel_initializer=initializer)
-                    self.bn2 = tf.layers.batch_normalization
-                    self.relu2 = tf.nn.relu 
-
-                    self.cv3 = tf.layers.Conv2DTranspose(
-                            filters=128, 
-                            kernel_size=5, 
-                            strides=2, 
-                            padding="same",
-                            kernel_initializer=initializer)
-                    self.bn3 = tf.layers.batch_normalization
-                    self.relu3 = tf.nn.relu
-
-                    self.cv4 = tf.layers.Conv2DTranspose(
-                            filters=64, 
-                            kernel_size=5, 
-                            strides=2, 
-                            padding='same',
-                            kernel_initializer=initializer)
-                    self.bn4 = tf.layers.batch_normalization
-                    self.relu4 = tf.nn.relu 
-                    
-                    self.cv5 = tf.layers.Conv2DTranspose(
-                            filters=3, 
-                            kernel_size=5, 
-                            strides=2, 
-                            padding="same",
-                            kernel_initializer=initializer)
-                    self.tanh1 = tf.nn.tanh 
+        
         def __call__(self, z, training=True):
             with tf.variable_scope("generator"):
                 img = tf.layers.dense(
@@ -409,7 +308,7 @@ class Generator():
                 img = tf.layers.conv2d_transpose(
                         inputs=img, 
                         filters=128, 
-                        kernel_size=4, 
+                        kernel_size=5, 
                         strides=2, 
                         padding='same', 
                         use_bias=False)
@@ -423,7 +322,7 @@ class Generator():
                 img = tf.layers.conv2d_transpose(
                         inputs=img, 
                         filters=64, 
-                        kernel_size=4, 
+                        kernel_size=5, 
                         strides=2, 
                         padding='same', 
                         use_bias=False)
@@ -445,9 +344,4 @@ class Generator():
                 print('conv5 output', img.get_shape())
                 img = tf.nn.tanh(img)
                 return img
-        
-        def sampler(self, z):
-            with tf.variable_scope('generator') as scope: 
-                scope.reuse_variables()
-                return self.common_alg(z, False)
 

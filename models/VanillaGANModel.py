@@ -11,10 +11,6 @@ from PIL import Image
 
 class VanillaGANModel(): 
         def __init__(self, genre, batch_size, z_dims=100, image_shape=(64, 64), alpha=0.2, reuse=True, lr=1e-3, beta1=0.5):
-                ## 185 x 278
-                # 128 x 128
-                # 32 x 69
-                # tf.reset_default_graph()
                 tf.reset_default_graph()
                 self.image_shape = image_shape
                 self.genre = genre 
@@ -27,7 +23,7 @@ class VanillaGANModel():
                 self.discriminator = Discriminator(alpha=alpha, lr=lr, beta1=beta1)
                 
                 self.add_placeholders()
-                #z = tf.random_uniform([batch_size, z_dims], -1, 1)
+
                 self.G_sample = self.generator(self.z)
                 self.z_summary = tf.summary.histogram("z", self.z)
                 
@@ -47,7 +43,6 @@ class VanillaGANModel():
                 self.D_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'discriminator')
                 self.G_extra_step = tf.get_collection(tf.GraphKeys.UPDATE_OPS, 'generator')
 
-                # self.sampler = self.generator.sampler(self.z)
                 self.saver = tf.train.Saver()
 
         def add_placeholders(self): 
@@ -63,7 +58,6 @@ class VanillaGANModel():
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
-                #merged = tf.summary.merge_all()
                 
                 self.sess = sess
 
@@ -109,7 +103,6 @@ class VanillaGANModel():
                                 fig = self.show_images(ex[idx:idx+3], True)
                                 plt.show()
                                 print()
-                        # for batch, minibatch in enumerate(batches): 
                         for batch_idx in range(0, num_batches-2):
                                 minibatch = batches.get_batch(batch_idx)
                                 
@@ -161,8 +154,6 @@ class VanillaGANModel():
                 image = X[i-1]
                 image *= 255
                 image = image.astype('uint8')
-                # print(image.shape)
-                # print(image)
                 im = Image.fromarray(image) 
                 filename = "output/" + self.genre + "/" + self.name + "/" + str(i) + ".jpg"
                 os.makedirs(os.path.dirname(filename), exist_ok=True) 
@@ -256,7 +247,6 @@ class Generator():
                 self.keep_prob = keep_prob
 
         def leaky_relu(self, x): 
-                #return tf.nn.leaky_relu(x, alpha=self.alpha) 
                 return tf.maximum(x, self.alpha * x)
 
         def get_loss(self, logits_real, logits_fake):
@@ -313,10 +303,3 @@ class Generator():
                 img = tf.nn.tanh(img)
                 print("gen", img.get_shape())
                 return img
-        
-        def sampler(self, z):
-            with tf.variable_scope('generator') as scope: 
-                scope.reuse_variables()
-                return self.common_alg(z, False)
-
-
