@@ -54,7 +54,7 @@ class LSGANModel():
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
 
-        def fit(self, sess, name, num_epochs=5, checkpoint_directory=None, show_every=1, print_every=1, load=True):
+        def fit(self, sess, name, num_epochs=5, checkpoint_directory=None, show_every=1, print_every=1, load=False):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
@@ -108,17 +108,9 @@ class LSGANModel():
                                         [self.D_train_op, self.D_loss, self.total_d_sum], 
                                         {self.images: minibatch, self.z: z})
                                                                 
-                                # _, G_loss_curr = sess.run(
-                                #         [self.G_train_op, self.G_loss], 
-                                #         {self.z: z})
                                 _, G_loss_curr, g_summary = sess.run(
                                         [self.G_train_op, self.G_loss, self.total_g_sum], 
                                         {self.z: z})
-
-                                if (G_loss_curr > 2):
-                                    _, G_loss_curr = sess.run(
-                                            [self.G_train_op, self.G_loss], 
-                                            {self.z:z})
 
 
                                 self.writer.add_summary(d_summary, counter) 

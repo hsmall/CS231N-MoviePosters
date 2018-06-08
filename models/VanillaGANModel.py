@@ -54,7 +54,7 @@ class VanillaGANModel():
                 G_loss = self.generator.get_loss(logits_real, logits_fake)
                 return D_loss, G_loss
 
-        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None, load=True):
+        def fit(self, sess, name, num_epochs=5, show_every=1, print_every=1, checkpoint_directory=None, load=False):
                 self.name = name
                 self.total_g_sum = tf.summary.merge([self.z_summary, self.G_summary, self.G_loss_summary])
                 self.total_d_sum = tf.summary.merge([self.z_summary, self.D_loss_summary])
